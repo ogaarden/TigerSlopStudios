@@ -1,20 +1,64 @@
 <!DOCTYPE html>
-<html>
+<html lang="no">
 <head>
-  <link rel="stylesheet" href="arraysort.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tigerslop Studios</title>
+  <meta name="description" content="Spill du kan spille rett i nettleseren, laget av Tigerslop Studios.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=DM+Mono:wght@500&family=Figtree:wght@400;600;700&family=Jacquard+12&family=Lilita+One&display=swap">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Hi, my name is Ole</h1>
-  
-  <p>I'm hosted with GitHub Pages.</p>
-  <input type="range" id="slider" min="0" max="100">
-  <p id="sliderValue"></p>
+  <div class="wrap">
+    <header class="top">
+      <a class="mini" href="./"><img src="assets/favicon.svg" alt="">Tigerslop <span>STUDIOS</span></a>
+    </header>
 
-  <div id="arrayDiv"></div>
-  <div>
-    <button id="sortButton" onclick="bubbleSort(array)">Bubble sort</button>
+    <section class="hero">
+      <div>
+        <h1>TIGERSLOP</h1>
+        <div class="studios">STUDIOS</div>
+        <p>Små spill, stor tiger. Trykk på et spill under, så starter det rett i nettleseren. Ingen nedlasting.</p>
+        <a class="cta" href="#spill">Se spillene</a>
+      </div>
+      <img src="assets/tiger.svg" alt="En muskuløs tiger som gamer i sofaen med pizza, brus og chips">
+    </section>
+
+    <section id="spill">
+      <h2 class="sec">Spill</h2>
+      <p class="sub">Velg ett og spill.</p>
+      <div class="grid">
+        <a class="game vt" href="games/vesper-trench/">
+          <div class="art"><div class="t">Vesper<br>Trench</div><span class="play">Spill</span></div>
+          <div class="info">
+            <h3>Vesper Trench</h3>
+            <p>Dykk ned i en 1 400 meter dyp sprekk på en fremmed havmåne. Utvinn, bygg bedre utstyr og finn det som gløder på bunnen.</p>
+            <div class="tags"><span>Utforskning</span><span>Oppgradering</span><span>Tastatur + mus</span></div>
+          </div>
+        </a>
+        <a class="game hm" href="games/hands-off-my-leftovers/">
+          <div class="art"><div class="t">Hands Off My<b>Leftovers!</b></div><span class="play">Spill</span></div>
+          <div class="info">
+            <h3>Hands Off My Leftovers!</h3>
+            <p>Skogens dyr vil ha lasagnen din. Bygg matvåpen langs stien og overlev 100 bølger.</p>
+            <div class="tags"><span>Tower defense</span><span>22 tårn</span><span>3 kart</span></div>
+          </div>
+        </a>
+        <a class="game jk" href="games/jump-king/">
+          <div class="art"><div class="t">Jump King</div><span class="play">Spill</span></div>
+          <div class="info">
+            <h3>Jump King</h3>
+            <p>Klatre opp tårnet, skjerm for skjerm, og nå kronen. Hopp, dash, veggspark og ikke se ned.</p>
+            <div class="tags"><span>Plattform</span><span>Speedrun</span><span>Mobil + tastatur</span></div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <footer><span>© Tigerslop Studios</span><span>Laget med Claude</span></footer>
   </div>
-  
-  <script src="app.js"></script>
 </body>
 </html>
