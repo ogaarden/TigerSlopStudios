@@ -1,0 +1,1387 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Deep Core: Mars Miner</title>
+<style>
+  :root{color-scheme:dark;
+  --bg:#0a0505; --panel:#1a100d; --panel2:#24160f; --ink:#f4e5d2; --dim:#b09580;
+  --accent:#ff8a3d; --accent2:#ffc560; --good:#7bd88f; --bad:#ff5a4f; --line:#5a3624; --line2:#2e1c14;
+}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden;
+  font-family:"Courier New",ui-monospace,Menlo,Consolas,monospace;-webkit-user-select:none;user-select:none;}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);}
+#game{image-rendering:pixelated;image-rendering:crisp-edges;display:block;background:#000;}
+.ov{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,2,2,.62);z-index:10;padding:16px;box-sizing:border-box;}
+.ov.show{display:flex;}
+.panel{background:var(--panel);border:3px solid var(--line);box-shadow:0 0 0 3px #000,0 14px 50px rgba(0,0,0,.7);
+  padding:18px 22px;width:min(720px,100%);max-height:calc(100vh - 32px);overflow:auto;box-sizing:border-box;}
+h1{font-size:34px;margin:4px 0 2px;color:var(--accent);letter-spacing:2px;text-shadow:3px 3px 0 #3a1608;}
+h2{font-size:22px;margin:0;color:var(--accent2);letter-spacing:1px;}
+h3{font-size:15px;margin:14px 0 6px;color:var(--accent);text-transform:uppercase;letter-spacing:1px;}
+p{line-height:1.45;margin:8px 0;}
+.sub{color:var(--dim);font-size:14px;}
+.btn{font:inherit;font-weight:bold;font-size:15px;background:#3a2216;color:var(--ink);border:2px solid var(--line);
+  padding:8px 14px;margin:4px 6px 4px 0;cursor:pointer;box-shadow:0 3px 0 #000;}
+.btn:hover:not([disabled]){background:#5a3220;border-color:var(--accent);}
+.btn:active:not([disabled]){transform:translateY(2px);box-shadow:0 1px 0 #000;}
+.btn[disabled]{opacity:.38;cursor:default;}
+.btn.big{font-size:18px;padding:11px 20px;display:block;width:100%;margin:8px 0;text-align:left;}
+.btn.primary{background:#7a3a12;border-color:var(--accent);}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;}
+.shop-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;border-bottom:2px solid var(--line2);padding-bottom:8px;}
+.cash{font-size:22px;color:var(--good);font-weight:bold;}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0;}
+td,th{padding:6px 6px;border-bottom:1px solid var(--line2);text-align:left;}
+th{color:var(--dim);font-weight:normal;font-size:12px;text-transform:uppercase;}
+td.num,th.num{text-align:right;}
+tr.cur td{background:#2c1a10;color:var(--accent2);}
+tr.extra td:first-child::after{content:" ★";color:#c78bff;}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0 4px;}
+.tab{font:inherit;font-size:13px;padding:6px 10px;background:#24150e;color:var(--dim);border:2px solid var(--line2);cursor:pointer;}
+.tab.on{color:var(--ink);border-color:var(--accent);background:#3a2216;}
+.bar{height:14px;background:#000;border:2px solid var(--line);position:relative;margin:6px 0;}
+.bar>i{position:absolute;left:0;top:0;bottom:0;background:var(--good);}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px;}
+.keys b{color:var(--accent2);}
+.dlg{display:flex;gap:16px;align-items:flex-start;}
+.dlg canvas{width:96px;height:96px;image-rendering:pixelated;border:3px solid var(--line);flex:none;background:#000;}
+.dlg .who{color:var(--accent);font-weight:bold;letter-spacing:1px;font-size:14px;}
+.dlg .txt{white-space:pre-wrap;min-height:90px;}
+.bonus{color:var(--good);font-weight:bold;}
+.hint{color:var(--dim);font-size:12px;margin-top:10px;}
+.tag{display:inline-block;font-size:11px;padding:2px 6px;border:1px solid var(--line);color:var(--dim);margin-left:6px;}
+#touch{position:fixed;inset:auto 0 0 0;display:none;z-index:5;pointer-events:none;justify-content:space-between;padding:12px;box-sizing:border-box;}
+#touch .pad{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(2,58px);gap:6px;pointer-events:auto;}
+#touch button{font:inherit;font-size:22px;font-weight:bold;background:rgba(40,20,12,.6);color:var(--ink);border:2px solid rgba(255,138,61,.5);border-radius:8px;touch-action:none;}
+#touch .side{display:flex;gap:6px;align-items:flex-end;pointer-events:auto;flex-wrap:wrap;max-width:200px;justify-content:flex-end;}
+#touch .side button{width:52px;height:52px;font-size:14px;}
+@media (max-width:520px){ h1{font-size:26px;} .dlg{flex-direction:column;} .panel{padding:14px;} }
+</style>
+
+<div id="wrap"><canvas id="game" width="800" height="600"></canvas></div>
+<div id="ov" class="ov"><div id="panel" class="panel"></div></div>
+<div id="touch">
+  <div class="pad">
+    <span></span><button data-k="up">▲</button><span></span>
+    <button data-k="left">◀</button><button data-k="down">▼</button><button data-k="right">▶</button>
+  </div>
+  <div class="side">
+    <button data-t="KeyF">F</button><button data-t="KeyR">R</button><button data-t="KeyX">X</button>
+    <button data-t="KeyC">C</button><button data-t="KeyQ">Q</button><button data-t="KeyM">M</button>
+    <button data-t="KeyE">E</button><button data-t="Escape">II</button>
+  </div>
+</div>
+<script>
+'use strict';
+/* =====================================================================
+   DEEP CORE: MARS MINER
+   En gameplay-gjenskapning av klassisk «grav-og-selg»-spill på Mars.
+   All grafikk er tegnet i kode. Ingen eksterne avhengigheter.
+
+   ALLE balanseverdier ligger i CONFIG under. Verdier markert med
+   "(?)" er anslag der originalens eksakte tall er usikre.
+   ===================================================================== */
+const CONFIG = {
+  // Sett til true for 100 % originalt omfang (ingen ekstra nivåer, mineraler eller endgame-sone).
+  ORIGINAL_MODE: false,
+
+  // ---------- Verden ----------
+  TILE: 32,                 // piksler per rute (internt)
+  FT_PER_TILE: 12.5,        // fot per rute (?) – gir ca. 560 ruter ned til 7 000 ft
+  WORLD_COLS: 40,           // inkl. urokkelig kant på hver side (?) originalen var ca. 35–40 ruter bred
+  SKY_ROWS: 10,             // luft over overflaten
+  MAIN_DEPTH_FT: 7000,      // dybde til kjernen / sjefsarenaen
+  ARENA_HEIGHT_FT: 200,     // sjefsarenaen ligger i de nederste 200 ft
+  EXTRA_DEPTH_FT: 3000,     // endgame-sone under kjernen (kun når ORIGINAL_MODE = false)
+  VIEW_W: 800, VIEW_H: 600,
+  START_MONEY: 20,          // (?) originalen startet med svært lite penger
+
+  // ---------- Fysikk (px og sekunder) ----------
+  GRAVITY: 620,
+  MAX_FALL: 900,
+  H_ACCEL: 1100,
+  H_MAX: 210,               // toppfart horisontalt med standardmotor
+  H_FRICTION_GROUND: 1500,
+  H_FRICTION_AIR: 260,
+  THRUST_K: 8200,           // løft (px/s²) = THRUST_K * motorkraft / masse
+  BASE_MASS: 600,           // podens egenvekt (kg)
+  CARGO_MASS_FACTOR: 0.8,   // hvor mye mineralvekt teller for løft
+  MAX_RISE: 270,            // maks stigefart med standardmotor
+  FALL_DMG_SPEED: 470,      // fart (px/s) ved landing før fallskade (~6 ruter fritt fall) (?)
+  FALL_DMG_PER: 1/28,       // HP skade per px/s over terskelen (?)
+  POD_W: 26, POD_H: 26,
+
+  // ---------- Boring ----------
+  DRILL_BASE_TIME: 0.55,    // sek. for vanlig jord ved overflaten med standardbor (?)
+  DRILL_BASE_POWER: 20,     // standardborets kraft – tid skaleres med BASE/kraft
+  DRILL_DEPTH_FT: 3000,     // grunnen blir hardere: +100 % gravetid per 3 000 ft (?)
+  DRILL_MIN_TIME: 0.12,
+  ROCK_HARDNESS: { dirt:1.0 },
+
+  // ---------- Drivstoff ----------
+  FUEL_IDLE: 0.012,         // L/s med motoren i gang (?)
+  FUEL_MOVE: 0.06,          // L/s ekstra ved kjøring (?)
+  FUEL_FLY: 0.11,           // L/s ekstra ved propell/thruster (?)
+  FUEL_DRILL: 0.09,         // L/s ved boring (?)
+  FUEL_PRICE: 2,            // $ per liter (?)
+  REPAIR_PRICE: 15,         // $ per HP (?)
+
+  // ---------- Varme ----------
+  // I originalen økte varmen med dybden; radiatoren reduserer effekten.
+  HEAT_START_FT: 1500,          // under denne dybden øker drivstofforbruket
+  HEAT_FUEL_PER_1000FT: 0.10,   // +10 % forbruk per 1 000 ft under start (?)
+  HEAT_DMG_START_FT: 2500,      // under denne dybden tar skroget skade mens du borer
+  HEAT_DMG_PER_1000FT: 0.55,    // HP/s mens du borer, per 1 000 ft under start (?)
+  TEMP_SURFACE_C: -40, TEMP_PER_FT: 0.115,   // kun visning
+
+  // ---------- Farer ----------
+  HAZARDS: {
+    CAVE_CHANCE: 0.012,                 // naturlige hulrom
+    ROCK_MIN: 0.010, ROCK_MAX: 0.11, ROCK_FULL_FT: 6000,     // ikke-borbare steinblokker
+    GAS_START_FT: 900,  GAS_MIN: 0.004, GAS_MAX: 0.030, GAS_FULL_FT: 6000,  // (?)
+    GAS_DMG_BASE: 8,  GAS_DMG_PER_1000FT: 9,      // eksplosjon: 8 + 9 per 1000 ft (?)
+    GAS_VISIBLE: false,                 // gass ser ut som vanlig jord (som originalen)
+    LAVA_START_FT: 2500, LAVA_MIN: 0.004, LAVA_MAX: 0.035, LAVA_FULL_FT: 6500, // (?)
+    LAVA_DMG_BASE: 15, LAVA_DMG_PER_1000FT: 10,   // (?)
+    LAVA_VISIBLE: true,                 // (?) usikker på om lava var synlig i originalen
+  },
+
+  MINERAL_DENSITY_TOP: 0.10,      // andel ruter med mineral nær overflaten
+  MINERAL_DENSITY_BOTTOM: 0.135,  // ... og ved kjernen
+
+  // ---------- Mineraler ----------
+  // min = dypeste-første fot, peak = full frekvens, fade* = blir sjeldnere lenger ned
+  MINERALS: [
+    { name:'Ironium',     value:30,      weight:10, hard:1.00, min:0,    peak:0,    fadeStart:1500, fadeEnd:4500, floor:.10, w:10,  col:'#8a8a92', hi:'#c8c8d0', type:'ore' },
+    { name:'Bronzium',    value:60,      weight:15, hard:1.05, min:50,   peak:400,  fadeStart:2000, fadeEnd:5000, floor:.10, w:7,   col:'#b8672e', hi:'#f0a060', type:'ore' },
+    { name:'Silverium',   value:100,     weight:20, hard:1.10, min:250,  peak:900,  fadeStart:2800, fadeEnd:5500, floor:.12, w:5,   col:'#b9c4cc', hi:'#ffffff', type:'ore' },
+    { name:'Goldium',     value:250,     weight:25, hard:1.15, min:600,  peak:1500, fadeStart:3800, fadeEnd:6200, floor:.15, w:4,   col:'#e0b020', hi:'#fff080', type:'ore' },
+    { name:'Platinum',    value:750,     weight:30, hard:1.20, min:1000, peak:2200, fadeStart:4800, fadeEnd:7000, floor:.20, w:3,   col:'#d8e0ec', hi:'#ffffff', type:'ore', glint:'#9fc8ff' },
+    { name:'Einsteinium', value:2000,    weight:35, hard:1.25, min:1600, peak:3000, w:2.4, col:'#5fe05a', hi:'#d6ffb0', type:'crystal' },
+    { name:'Emerald',     value:5000,    weight:40, hard:1.30, min:2300, peak:3800, w:1.8, col:'#18a85a', hi:'#8cffc0', type:'gem' },
+    { name:'Ruby',        value:20000,   weight:45, hard:1.35, min:3100, peak:4700, w:1.3, col:'#d0203a', hi:'#ff9aa8', type:'gem' },
+    { name:'Diamond',     value:100000,  weight:50, hard:1.45, min:4000, peak:5700, w:0.6, col:'#bfefff', hi:'#ffffff', type:'gem' },
+    { name:'Amazonite',   value:500000,  weight:55, hard:1.50, min:5200, peak:6600, w:0.4, col:'#2ad0c0', hi:'#b0fff6', type:'gem' },
+    // Ekstra (ikke i originalen)
+    { name:'Voidstone',   value:1500000, weight:60, hard:1.60, min:7100, peak:8200, w:0.55, col:'#5a2a9a', hi:'#d0a0ff', type:'gem', extra:true },
+    { name:'Starheart',   value:5000000, weight:70, hard:1.70, min:7900, peak:9500, w:0.35, col:'#ff70c0', hi:'#fff0fa', type:'crystal', extra:true },
+  ],
+
+  // ---------- Artefakter (gir penger med én gang) ----------
+  ARTIFACTS: [
+    { name:'Fossilt skjelett',     value:1000,   min:300,  max:3000,  chance:0.0008, kind:'bone' },
+    { name:'Gammel landingssonde', value:5000,   min:1200, max:4500,  chance:0.0006, kind:'probe' },
+    { name:'Krystallskalle',       value:10000,  min:2500, max:6000,  chance:0.0005, kind:'skull' },
+    { name:'Runetavle',            value:50000,  min:4000, max:6700,  chance:0.0004, kind:'tablet' },
+    { name:'Vokterens hjerte',     value:250000, min:7100, max:10000, chance:0.0006, kind:'heart', extra:true },
+  ],
+
+  // ---------- Oppgraderinger ----------
+  // Prisene følger originalens trapp: 750 / 2 000 / 5 000 / 20 000 / 100 000 / 500 000.
+  UPGRADES: {
+    drill:   { label:'Bor', unit:'kraft', levels:[
+      { name:'Standardbor',        price:0,       value:20 },
+      { name:'Silvid-bor',         price:750,     value:28 },
+      { name:'Goldium-bor',        price:2000,    value:40 },
+      { name:'Smaragdbor',         price:5000,    value:50 },
+      { name:'Rubinbor',           price:20000,   value:70 },
+      { name:'Diamantbor',         price:100000,  value:95 },
+      { name:'Amazonittbor',       price:500000,  value:120 },
+      { name:'Kvantebor',          price:1500000, value:160, extra:true },
+      { name:'Singularitetsbor',   price:4000000, value:220, extra:true },
+    ]},
+    hull:    { label:'Skrog', unit:'HP', levels:[
+      { name:'Standardskrog',      price:0,       value:10 },
+      { name:'Ironium-skrog',      price:750,     value:17 },
+      { name:'Bronzium-skrog',     price:2000,    value:30 },
+      { name:'Stålskrog',          price:5000,    value:50 },
+      { name:'Platinaskrog',       price:20000,   value:80 },
+      { name:'Einsteinium-skrog',  price:100000,  value:120 },
+      { name:'Energiskjoldskrog',  price:500000,  value:180 },
+      { name:'Nøytronskrog',       price:1500000, value:260, extra:true },
+      { name:'Kjerneskall',        price:4000000, value:360, extra:true },
+    ]},
+    engine:  { label:'Motor', unit:'hk', levels:[   // (?) hk-tallene er tilpasset løftemodellen
+      { name:'Standardmotor',      price:0,       value:150 },
+      { name:'V4 1.6L',            price:750,     value:180 },
+      { name:'V4 2.0L Turbo',      price:2000,    value:220 },
+      { name:'V6 3.8L',            price:5000,    value:270 },
+      { name:'V8 5.3L',            price:20000,   value:340 },
+      { name:'V12 6.0L',           price:100000,  value:430 },
+      { name:'V16 Kvantum',        price:500000,  value:540 },
+      { name:'Fusjonsmotor',       price:1500000, value:700, extra:true },
+      { name:'Antimateriemotor',   price:4000000, value:900, extra:true },
+    ]},
+    tank:    { label:'Drivstofftank', unit:'L', levels:[
+      { name:'Mikrotank',          price:0,       value:10 },
+      { name:'Middels tank',       price:750,     value:15 },
+      { name:'Stor tank',          price:2000,    value:25 },
+      { name:'Gigantisk tank',     price:5000,    value:40 },
+      { name:'Titanisk tank',      price:20000,   value:60 },
+      { name:'Leviatan-tank',      price:100000,  value:100 },
+      { name:'Væskekompresjonstank', price:500000, value:150 },
+      { name:'Kryotank',           price:1500000, value:250, extra:true },
+      { name:'Nullpunkttank',      price:4000000, value:400, extra:true },
+    ]},
+    radiator:{ label:'Radiator', unit:'%', levels:[
+      { name:'Standardvifte',      price:0,       value:0 },
+      { name:'Doble vifter',       price:2000,    value:0.10 },
+      { name:'Enkel turbin',       price:5000,    value:0.25 },
+      { name:'Dobbel turbin',      price:20000,   value:0.40 },
+      { name:'Puron-kjøling',      price:100000,  value:0.60 },
+      { name:'Tri-turbin freon',   price:500000,  value:0.80 },
+      { name:'Kryoradiator',       price:1500000, value:0.88, extra:true },
+      { name:'Faseskiftkjerne',    price:4000000, value:0.95, extra:true },
+    ]},
+    cargo:   { label:'Lasterom', unit:'plasser', levels:[
+      { name:'Mikrorom',           price:0,       value:7 },
+      { name:'Middels rom',        price:750,     value:15 },
+      { name:'Stort rom',          price:2000,    value:25 },
+      { name:'Gigantisk rom',      price:5000,    value:40 },
+      { name:'Titanisk rom',       price:20000,   value:70 },
+      { name:'Leviatan-rom',       price:100000,  value:120 },
+      { name:'Lommedimensjon',     price:600000,  value:180, extra:true },
+      { name:'Hyperrom',           price:2500000, value:250, extra:true },
+    ]},
+  },
+
+  // ---------- Forbruksvarer ----------
+  ITEMS: {
+    fuel:  { name:'Reservedrivstoff',  key:'F', price:2000,  desc:'+25 L drivstoff, når som helst.', amount:25 },
+    repair:{ name:'Nanobot-reparasjon',key:'R', price:7500,  desc:'Reparerer 30 HP på stedet.', amount:30 },
+    dyn:   { name:'Dynamitt',          key:'X', price:2000,  desc:'Sprenger 3×3 ruter rundt poden.', radius:1 },
+    c4:    { name:'C4-sprengstoff',    key:'C', price:5000,  desc:'Sprenger 5×5 ruter rundt poden.', radius:2 },
+    qtele: { name:'Kvanteteleporter',  key:'Q', price:2000,  desc:'Til overflaten et tilfeldig sted. Lasten går tapt.' },
+    mtele: { name:'Materietransmitter',key:'M', price:10000, desc:'Trygt tilbake til basen – lasten blir med.' },
+  },
+
+  // ---------- Historie: radiomeldinger og dybdebonuser ----------
+  // (?) Bonusbeløpene er anslag i originalens størrelsesorden.
+  STORY: [
+    { ft:0, who:'S. KRANE · KRANE-ARES MINING', bonus:0, glitch:0, text:
+`Velkommen til Mars, operatør. Jeg er Severin Krane.
+
+Selskapet har kjøpt rettighetene til hele denne sektoren, og du er den første vi sender ned. Bor deg ned, fyll lasterommet og selg malmen på foredlingsanlegget.
+
+Hold øye med drivstoffet. Går du tom der nede, kommer ingen og henter deg.
+
+Og operatør ... grav dypt. Jeg betaler godt for dybde.` },
+    { ft:500,  who:'S. KRANE', bonus:1000, glitch:0, text:
+`500 fot allerede. Imponerende.
+
+Jeg har satt inn en bonus på kontoen din. Sensorene våre fanger opp noe ... uvanlig lenger ned. Ikke bry deg om det. Fortsett.` },
+    { ft:1000, who:'S. KRANE', bonus:3000, glitch:0.05, text:
+`Tusen fot. Her nede forsvant de første sondene våre.
+
+En advarsel: dataene viser gasslommer i berget. De ser ut som vanlig jord, men eksploderer når du borer i dem. Sørg for at skroget tåler det.` },
+    { ft:2000, who:'S. KRANE', bonus:5000, glitch:0.1, text:
+`Det blir varmere. Radiatoren din kommer til å bety mer enn du tror.
+
+Og du vil snart støte på lava. Ikke bor i den.
+
+... Hørte du noe? Bare statisk støy, sikkert.` },
+    { ft:3000, who:'S. KRANE', bonus:10000, glitch:0.2, quake:true, text:
+`Tre tusen fot. Du er lenger nede enn noe menneske har vært.
+
+Seismografene slår ut. Det kommer et skjelv – det kan fylle igjen tunnelene dine. Hold deg i ro, og ...
+
+... DET VÅKNER.
+
+Unnskyld. Feil på linjen.` },
+    { ft:4000, who:'S. K̷RANE', bonus:20000, glitch:0.35, text:
+`Jeg har prøvd å huske hvordan selskapet ble grunnlagt. Jeg kan ikke.
+
+Jeg husker ikke kontoret. Jeg husker ikke ansiktet mitt.
+
+Jeg husker bare mørket under deg. Fortsett å grave. Bonusen er overført.` },
+    { ft:5000, who:'?̸?̷?', bonus:50000, glitch:0.55, text:
+`DU ER NESTEN FREMME.
+
+JEG KAN HØRE BORET DITT GJENNOM STEINEN.
+
+TI TUSEN ÅR HAR JEG VENTET PÅ AT NOEN SKULLE GRAVE.` },
+    { ft:6000, who:'?̸?̷?', bonus:100000, glitch:0.75, text:
+`Det finnes ingen Krane-Ares, operatør. Det har aldri gjort det.
+
+Det finnes bare meg, og forseglingen du er i ferd med å bryte.
+
+Ta pengene. Kjøp det beste skroget du har råd til. Og kom ned til meg.` },
+  ],
+  BOSS: {
+    NAME: 'KJERNEVOKTEREN',
+    HP: 220,
+    RADIUS: 38,
+    FIRE_CD: [1.6, 1.0],        // sek. mellom skudd i fase 1 / 2
+    FIRE_SPEED: [250, 300],
+    FIRE_DMG: [7, 10],
+    CHARGE_CD: [[5,7],[3.5,5]],
+    CHARGE_SPEED: [480, 620],
+    STUN_TIME: [2.6, 2.0],
+    CONTACT_DMG: [8, 12],
+    DRILL_DMG_BASE: 4, DRILL_DMG_PER_POWER: 0.12,  // skade ved å ramme kjernen mens den er lammet
+    MAX_HITS_PER_STUN: 3,
+    DYN_DMG: 20, C4_DMG: 45,
+    REWARD: 1000000,
+  },
+  // Jordskjelv: fyller igjen tunneler (andel) når meldingen med quake:true kommer.
+  QUAKE_REFILL: 0.55,
+  QUAKE_DURATION: 3.2,
+};
+
+/* ===================== Grunnverktøy ===================== */
+const TS = CONFIG.TILE, VW = CONFIG.VIEW_W, VH = CONFIG.VIEW_H;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const fmt$=n=>'$'+Math.floor(n).toLocaleString('en-US');
+const rand=(a,b)=>a+Math.random()*(b-a);
+
+/* Rutetyper */
+const T_EMPTY=0,T_DIRT=1,T_ROCK=2,T_GAS=3,T_LAVA=4,T_BEDROCK=5,T_CONCRETE=6,T_SEAL=7,T_MIN=20,T_ART=60;
+const isMineral=t=>t>=T_MIN&&t<T_MIN+CONFIG.MINERALS.length;
+const isArtifact=t=>t>=T_ART&&t<T_ART+CONFIG.ARTIFACTS.length;
+const diggable=t=>t===T_DIRT||t===T_GAS||t===T_LAVA||isMineral(t)||isArtifact(t);
+const indestructible=t=>t===T_BEDROCK||t===T_CONCRETE||t===T_SEAL;
+
+const ZONES=[
+  { id:'fuel',    name:'DRIVSTOFF',          x0:2,  x1:5,  col:'#c8321e', col2:'#f0c040' },
+  { id:'sell',    name:'MINERALFOREDLING',   x0:9,  x1:14, col:'#5a6470', col2:'#a8e070' },
+  { id:'upgrade', name:'OPPGRADERINGER',     x0:23, x1:28, col:'#3a5a8a', col2:'#80c8ff' },
+  { id:'repair',  name:'REPARASJON',         x0:32, x1:35, col:'#7a6a3a', col2:'#ffd070' },
+];
+
+/* ===================== Tilstand ===================== */
+let W=null,P=null,G=null,B=null;
+let state='menu', prevState='play';
+const particles=[], fireballs=[], toasts=[];
+const cam={x:0,y:0,shake:0};
+let flash=0, animT=0;
+
+function upgVal(cat){ return CONFIG.UPGRADES[cat].levels[P.lv[cat]].value; }
+const maxFuel=()=>upgVal('tank'), maxHull=()=>upgVal('hull'), cargoCap=()=>upgVal('cargo');
+const drillPower=()=>upgVal('drill'), enginePower=()=>upgVal('engine'), radiator=()=>upgVal('radiator');
+function cargoCount(){ let n=0; for(const v of P.cargo) n+=v; return n; }
+function cargoMass(){ let m=0; P.cargo.forEach((v,i)=>m+=v*CONFIG.MINERALS[i].weight); return m; }
+const depthFtAtY=y=>(y-W.skyRows*TS)/TS*CONFIG.FT_PER_TILE;
+const depthFtRow=r=>(r-W.skyRows)*CONFIG.FT_PER_TILE;
+function activeLevels(cat){ return CONFIG.UPGRADES[cat].levels.map((L,i)=>({...L,i})).filter(L=>!(L.extra&&CONFIG.ORIGINAL_MODE)); }
+
+/* ===================== Verden ===================== */
+const STRATA=[
+  {ft:0,    c:['#8a4426','#7a3a20','#9c5230','#5e2c16'], tunnel:'#2a120a'},
+  {ft:1200, c:['#70381f','#62301b','#80442a','#4a2412'], tunnel:'#230f08'},
+  {ft:2500, c:['#5a2e26','#4c2620','#6a3a30','#381a16'], tunnel:'#1c0c0a'},
+  {ft:3800, c:['#41262e','#362029','#4e3038','#28161c'], tunnel:'#150a0e'},
+  {ft:5200, c:['#2f1a2c','#271526','#3a2236','#1c0e1a'], tunnel:'#0f070d'},
+  {ft:6300, c:['#36100f','#2c0c0c','#461816','#1e0606'], tunnel:'#100303'},
+  {ft:7010, c:['#13203a','#0f1a30','#1b2c4a','#0a1222'], tunnel:'#04070e'},
+];
+function strataIdx(d){ for(let i=STRATA.length-1;i>=0;i--) if(d>=STRATA[i].ft) return i; return 0; }
+
+function mineralWeights(d){
+  return CONFIG.MINERALS.map(m=>{
+    if(m.extra&&CONFIG.ORIGINAL_MODE) return 0;
+    if(d<m.min) return 0;
+    let w=m.w;
+    if(m.peak>m.min&&d<m.peak) w*=Math.max(0.15,(d-m.min)/(m.peak-m.min));
+    if(m.fadeStart!=null&&d>m.fadeStart){ const t=clamp((d-m.fadeStart)/(m.fadeEnd-m.fadeStart),0,1); w*=lerp(1,m.floor,t); }
+    return w;
+  });
+}
+
+function genTile(r,rnd){
+  const g=r-W.skyRows; if(g<0) return T_EMPTY;
+  const d=depthFtRow(r), H=CONFIG.HAZARDS;
+  for(let i=0;i<CONFIG.ARTIFACTS.length;i++){ const a=CONFIG.ARTIFACTS[i];
+    if(a.extra&&CONFIG.ORIGINAL_MODE) continue;
+    if(d>=a.min&&d<=a.max&&rnd()<a.chance) return T_ART+i; }
+  if(g>=3){
+    if(rnd()<H.CAVE_CHANCE) return T_EMPTY;
+    if(rnd()<lerp(H.ROCK_MIN,H.ROCK_MAX,clamp(d/H.ROCK_FULL_FT,0,1))) return T_ROCK;
+    if(d>=H.GAS_START_FT&&rnd()<lerp(H.GAS_MIN,H.GAS_MAX,clamp((d-H.GAS_START_FT)/(H.GAS_FULL_FT-H.GAS_START_FT),0,1))) return T_GAS;
+    if(d>=H.LAVA_START_FT&&rnd()<lerp(H.LAVA_MIN,H.LAVA_MAX,clamp((d-H.LAVA_START_FT)/(H.LAVA_FULL_FT-H.LAVA_START_FT),0,1))) return T_LAVA;
+  }
+  const dens=lerp(CONFIG.MINERAL_DENSITY_TOP,CONFIG.MINERAL_DENSITY_BOTTOM,clamp(d/CONFIG.MAIN_DEPTH_FT,0,1));
+  if(g>=1&&rnd()<dens){
+    const ws=mineralWeights(d); let tot=0; for(const w of ws) tot+=w;
+    if(tot>0){ let p=rnd()*tot; for(let i=0;i<ws.length;i++){ p-=ws[i]; if(p<=0) return T_MIN+i; } }
+  }
+  return T_DIRT;
+}
+
+function buildWorld(seed){
+  const cols=CONFIG.WORLD_COLS, sky=CONFIG.SKY_ROWS;
+  const mainRows=Math.round(CONFIG.MAIN_DEPTH_FT/CONFIG.FT_PER_TILE);
+  const extra=CONFIG.ORIGINAL_MODE?0:Math.round(CONFIG.EXTRA_DEPTH_FT/CONFIG.FT_PER_TILE);
+  const sealRow=sky+mainRows;
+  const rows=sealRow+1+(extra?extra+1:0);
+  W={cols,rows,skyRows:sky,sealRow,arenaBottom:sealRow-1,
+     arenaTop:sealRow-Math.round(CONFIG.ARENA_HEIGHT_FT/CONFIG.FT_PER_TILE),
+     grid:new Uint8Array(cols*rows),rowStrata:new Uint8Array(rows),hasExtra:!!extra};
+  const rnd=mulberry32(seed);
+  for(let r=0;r<rows;r++){
+    W.rowStrata[r]=strataIdx(depthFtRow(r));
+    for(let c=0;c<cols;c++){
+      let t;
+      if(r<sky) t=T_EMPTY;
+      else if(c===0||c===cols-1) t=T_BEDROCK;
+      else if(r===sealRow) t=T_SEAL;
+      else if(r===rows-1&&extra) t=T_BEDROCK;
+      else t=genTile(r,rnd);
+      W.grid[r*cols+c]=t;
+    }
+  }
+  if(!extra) for(let c=0;c<cols;c++) W.grid[sealRow*cols+c]=c===0||c===cols-1?T_BEDROCK:T_SEAL;
+  // betong under byggene
+  for(const z of ZONES) for(let c=z.x0;c<=z.x1;c++) W.grid[sky*cols+c]=T_CONCRETE;
+  // sjefsarena
+  for(let r=W.arenaTop;r<=W.arenaBottom;r++) for(let c=1;c<cols-1;c++) W.grid[r*cols+c]=T_EMPTY;
+  for(let c=5;c<=9;c++)   W.grid[(W.arenaBottom-4)*cols+c]=T_BEDROCK;
+  for(let c=30;c<=34;c++) W.grid[(W.arenaBottom-4)*cols+c]=T_BEDROCK;
+  for(let c=17;c<=22;c++) W.grid[(W.arenaBottom-8)*cols+c]=T_BEDROCK;
+}
+function getT(c,r){ if(r<0) return T_EMPTY; if(c<0||c>=W.cols||r>=W.rows) return T_BEDROCK; return W.grid[r*W.cols+c]; }
+function setT(c,r,t){ if(c<0||c>=W.cols||r<0||r>=W.rows) return; W.grid[r*W.cols+c]=t; }
+const solid=(c,r)=>getT(c,r)!==T_EMPTY;
+
+/* ===================== Sprites (tegnet i kode) ===================== */
+const SPR={dirt:[],ore:[],art:[]};
+function mk(w,h,fn){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.imageSmoothingEnabled=false;fn(x);return c;}
+function pix(fn){ const s=mk(16,16,fn); return mk(TS,TS,x=>{x.imageSmoothingEnabled=false;x.drawImage(s,0,0,TS,TS);}); }
+function p1(x,c,i,j,w=1,h=1){x.fillStyle=c;x.fillRect(i,j,w,h);}
+function initSprites(){
+  STRATA.forEach((s,si)=>{
+    SPR.dirt[si]=[];
+    for(let v=0;v<4;v++){
+      const r=mulberry32(si*100+v*7+3);
+      SPR.dirt[si][v]=pix(x=>{
+        p1(x,s.c[0],0,0,16,16);
+        for(let i=0;i<16;i+=2)for(let j=0;j<16;j+=2){const q=r(); if(q<0.28)p1(x,s.c[1],i,j,2,2); else if(q<0.4)p1(x,s.c[2],i,j,2,1);}
+        for(let k=0;k<4;k++){const a=(r()*14)|0,b=(r()*14)|0; p1(x,s.c[3],a,b+1,2,1); p1(x,s.c[2],a,b,1,1);}
+      });
+    }
+  });
+  CONFIG.MINERALS.forEach((m,i)=>{
+    const r=mulberry32(900+i*31);
+    SPR.ore[i]=pix(x=>{
+      if(m.type==='ore'){
+        const spots=[[3,3],[9,2],[5,8],[11,9],[3,12],[9,13]];
+        for(const [a,b] of spots){ if(r()<0.2) continue;
+          const ox=a+((r()*2)|0), oy=b+((r()*2)|0);
+          p1(x,'rgba(0,0,0,.45)',ox,oy+1,4,2); p1(x,m.col,ox,oy,3,2); p1(x,m.hi,ox,oy,1,1);
+          if(m.glint) p1(x,m.glint,ox+2,oy+1,1,1);
+        }
+      } else if(m.type==='crystal'){
+        const sh=[[4,4,7],[8,3,9],[11,6,6],[6,9,5]];
+        for(const [a,b,h] of sh){ p1(x,'rgba(0,0,0,.4)',a+1,b+1,2,h); p1(x,m.col,a,b,2,h); p1(x,m.hi,a,b,1,Math.max(1,h-3)); }
+      } else {
+        const cx=8,cy=8;
+        p1(x,'rgba(0,0,0,.45)',cx-4,cy-2,10,8);
+        for(let dy=-5;dy<=5;dy++){ const hw=5-Math.abs(dy); for(let dx=-hw;dx<=hw;dx++){
+          const c=(dx<0&&dy<0)?m.hi:(dx>0&&dy>0)?shade(m.col,-0.35):m.col; p1(x,c,cx+dx,cy+dy,1,1);} }
+        p1(x,'#ffffff',cx-2,cy-3,1,1); p1(x,m.hi,cx-1,cy-2,1,1);
+        p1(x,m.col,3,13,2,2); p1(x,m.hi,3,13,1,1); p1(x,m.col,12,3,2,2);
+      }
+    });
+  });
+  const ART_COL={bone:'#efe6cf',probe:'#9aa0a8',skull:'#9fe8ff',tablet:'#8a7f70',heart:'#ff4060'};
+  CONFIG.ARTIFACTS.forEach((a,i)=>{
+    SPR.art[i]=pix(x=>{
+      const c=ART_COL[a.kind];
+      if(a.kind==='bone'){ p1(x,'rgba(0,0,0,.4)',3,8,11,3); p1(x,c,3,7,10,2); p1(x,c,2,6,2,4); p1(x,c,12,6,2,4); p1(x,c,5,4,1,3);p1(x,c,8,4,1,3);p1(x,c,5,10,1,3);p1(x,c,8,10,1,3);}
+      else if(a.kind==='probe'){ p1(x,'#555',4,6,8,7); p1(x,c,4,5,8,6); p1(x,'#d04040',6,7,2,2); p1(x,'#ccc',7,1,1,4); p1(x,'#ffd040',6,1,3,1); p1(x,c,2,11,2,3); p1(x,c,12,11,2,3);}
+      else if(a.kind==='skull'){ p1(x,c,4,3,8,8); p1(x,c,5,11,6,3); p1(x,'#204060',5,6,2,2); p1(x,'#204060',9,6,2,2); p1(x,'#fff',5,4,2,1);}
+      else if(a.kind==='tablet'){ p1(x,'#3a3028',3,2,10,13); p1(x,c,3,1,10,13); for(let k=0;k<4;k++){p1(x,'#d8b060',5,3+k*3,2,1);p1(x,'#d8b060',8,3+k*3,3,1);} }
+      else { p1(x,'#600010',4,4,8,8); p1(x,c,5,5,6,6); p1(x,'#ffc0d0',6,6,2,2); }
+    });
+  });
+  SPR.rock=pix(x=>{
+    p1(x,'rgba(0,0,0,.4)',2,4,13,11);
+    const g=[[4,1,8],[2,2,12],[1,3,14],[1,4,14],[1,5,14],[1,6,14],[1,7,14],[1,8,14],[1,9,14],[1,10,14],[2,11,12],[2,12,12],[4,13,8]];
+    for(const [a,b,w] of g) p1(x,'#6c6a70',a,b,w,1);
+    p1(x,'#8e8c94',3,3,6,3); p1(x,'#a8a6ae',4,3,2,1);
+    p1(x,'#4a484e',9,8,5,5); p1(x,'#3a383e',6,7,1,4); p1(x,'#3a383e',7,10,3,1); p1(x,'#3a383e',10,4,1,3);
+  });
+  SPR.bedrock=pix(x=>{ p1(x,'#1e1c22',0,0,16,16);
+    for(let i=0;i<4;i++)for(let j=0;j<4;j++){ p1(x,(i+j)%2?'#2a2830':'#25232b',i*4,j*4,4,4); p1(x,'#34323a',i*4,j*4,3,1);} });
+  SPR.concrete=pix(x=>{ p1(x,'#7c7670',0,0,16,16); p1(x,'#968f88',0,0,16,2); p1(x,'#5a5550',0,8,16,1); p1(x,'#5a5550',7,0,1,8); p1(x,'#5a5550',3,8,1,8); p1(x,'#5a5550',12,8,1,8);});
+  SPR.seal=pix(x=>{ p1(x,'#1c0a28',0,0,16,16); p1(x,'#2c1240',0,0,16,1);
+    const r=[[2,3],[6,5],[10,2],[13,7],[4,10],[9,11],[12,13],[1,14]]; for(const [a,b] of r){p1(x,'#b050ff',a,b,2,1);p1(x,'#b050ff',a+1,b+1,1,1);} });
+  SPR.lava=[0,1].map(f=>pix(x=>{ const r=mulberry32(77+f*5); p1(x,'#8a1a06',0,0,16,16);
+    for(let i=0;i<16;i+=2)for(let j=0;j<16;j+=2){const q=r(); if(q<0.35)p1(x,'#e2481a',i,j,2,2); else if(q<0.48)p1(x,'#ffb030',i,j,2,1);}
+    p1(x,'#3a0a04',(r()*12)|0,(r()*12)|0,3,2); p1(x,'#3a0a04',(r()*12)|0,(r()*12)|0,2,2); }));
+  SPR.gasTint=pix(x=>{ for(let k=0;k<6;k++) p1(x,'rgba(150,255,120,.35)',2+k*2,4+(k%3)*3,2,2); });
+}
+function shade(hex,f){ const n=parseInt(hex.slice(1),16); let r=n>>16,g=n>>8&255,b=n&255;
+  if(f<0){r*=1+f;g*=1+f;b*=1+f;} else {r+=(255-r)*f;g+=(255-g)*f;b+=(255-b)*f;}
+  return `rgb(${r|0},${g|0},${b|0})`; }
+
+/* ===================== Lyd (enkel WebAudio-synth) ===================== */
+const Sfx={ac:null,on:true,
+  init(){ if(this.ac) return; try{ this.ac=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ this.ac=null; } },
+  tone(f,d,type='square',v=0.05,slide=0){ if(!this.on||!this.ac) return; try{
+    const t=this.ac.currentTime,o=this.ac.createOscillator(),g=this.ac.createGain();
+    o.type=type;o.frequency.setValueAtTime(f,t); if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(20,f*slide),t+d);
+    g.gain.setValueAtTime(v,t); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.connect(g);g.connect(this.ac.destination);o.start(t);o.stop(t+d+0.02);}catch(e){} },
+  noise(d,v=0.15,freq=800){ if(!this.on||!this.ac) return; try{
+    const t=this.ac.currentTime,n=Math.floor(this.ac.sampleRate*d),buf=this.ac.createBuffer(1,n,this.ac.sampleRate),a=buf.getChannelData(0);
+    for(let i=0;i<n;i++) a[i]=(Math.random()*2-1)*(1-i/n);
+    const s=this.ac.createBufferSource(),f=this.ac.createBiquadFilter(),g=this.ac.createGain();
+    f.type='lowpass';f.frequency.value=freq;g.gain.value=v;s.buffer=buf;s.connect(f);f.connect(g);g.connect(this.ac.destination);s.start(t);}catch(e){} },
+  drill(){this.noise(0.08,0.05,500);}, collect(){this.tone(520,0.08,'square',0.04,1.6);setTimeout(()=>this.tone(780,0.1,'square',0.035,1.4),60);},
+  boom(){this.noise(0.7,0.35,400);this.tone(90,0.5,'sawtooth',0.08,0.4);}, hurt(){this.tone(180,0.18,'sawtooth',0.06,0.5);},
+  cash(){this.tone(880,0.07,'square',0.04);setTimeout(()=>this.tone(1320,0.15,'square',0.04),70);},
+  blip(){this.tone(1200,0.03,'square',0.025);}, warn(){this.tone(440,0.12,'triangle',0.06);},
+};
+
+/* ===================== Spill-livssyklus ===================== */
+function newPlayer(){
+  return { x:(7+0.5)*TS, y:CONFIG.SKY_ROWS*TS-CONFIG.POD_H/2-0.01, vx:0, vy:0, onGround:true, blockX:0, facing:1,
+    drill:null, fuel:10, hull:10, money:CONFIG.START_MONEY, lv:{drill:0,hull:0,engine:0,tank:0,radiator:0,cargo:0},
+    items:{fuel:0,repair:0,dyn:0,c4:0,qtele:0,mtele:0}, cargo:CONFIG.MINERALS.map(()=>0),
+    maxDepth:0, dead:0, deadReason:'', lastZone:null, thrust:false, lowFuelWarned:false, drillSnd:0, heatHurt:0 };
+}
+function newGame(){
+  const seed=(Math.random()*1e9)|0;
+  buildWorld(seed);
+  P=newPlayer(); P.fuel=maxFuel(); P.hull=maxHull();
+  G={seed,time:0,storyDone:[],bossStarted:false,bossDefeated:false,totalEarned:0,dialogs:[],quake:null,pendingVictory:false,shopTab:'drill'};
+  B=null; particles.length=0; fireballs.length=0; toasts.length=0;
+  cam.x=P.x-VW/2; cam.y=P.y-VH/2;
+  setState('play');
+  checkStory();
+}
+
+/* ===================== Lagring ===================== */
+const SAVE_KEY='deepcore_mars_miner_save_v1';
+function b64(u8){ let s=''; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); }
+function unb64(s){ const b=atob(s),u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+function saveGame(quiet){
+  if(!W||!P||P.dead) return false;
+  try{
+    const data={v:1,mode:CONFIG.ORIGINAL_MODE,cols:W.cols,rows:W.rows,grid:b64(W.grid),
+      P:{x:P.x,y:P.y,fuel:P.fuel,hull:P.hull,money:P.money,lv:P.lv,items:P.items,cargo:P.cargo,maxDepth:P.maxDepth},
+      G:{seed:G.seed,time:G.time,storyDone:G.storyDone,bossStarted:G.bossStarted,bossDefeated:G.bossDefeated,totalEarned:G.totalEarned}};
+    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+    if(!quiet) toast('Spillet er lagret','#7bd88f');
+    return true;
+  }catch(e){ if(!quiet) toast('Kunne ikke lagre (lagring blokkert)','#ff5a4f'); return false; }
+}
+function readSave(){ try{ const s=localStorage.getItem(SAVE_KEY); return s?JSON.parse(s):null; }catch(e){ return null; } }
+function loadGame(){
+  const d=readSave(); if(!d) return false;
+  try{
+    CONFIG.ORIGINAL_MODE=!!d.mode;
+    buildWorld(d.G.seed);
+    const g=unb64(d.grid); if(g.length!==W.grid.length) throw new Error('size');
+    W.grid=g;
+    P=newPlayer(); Object.assign(P,d.P); P.lv={...newPlayer().lv,...d.P.lv}; P.items={...newPlayer().items,...d.P.items};
+    P.hull=Math.min(P.hull,maxHull()); P.fuel=Math.min(P.fuel,maxFuel());
+    G={...d.G,dialogs:[],quake:null,pendingVictory:false,shopTab:'drill'};
+    B=null; particles.length=0; fireballs.length=0; toasts.length=0;
+    if(G.bossStarted&&!G.bossDefeated) G.bossStarted=false; // sjefen vekkes igjen når du går inn i arenaen
+    cam.x=P.x-VW/2; cam.y=P.y-VH/2;
+    P.lastZone=zoneAt(); // ikke åpne butikken med én gang
+    setState('play'); toast('Lagret spill lastet','#7bd88f');
+    return true;
+  }catch(e){ toast('Lagringen var ødelagt','#ff5a4f'); return false; }
+}
+
+/* ===================== Hjelpere for spillet ===================== */
+function toast(text,color='#f4e5d2',dur=2.2){ toasts.push({text,color,t:dur,d:dur}); if(toasts.length>5) toasts.shift(); }
+function addP(x,y,vx,vy,life,color,size=3,grav=600){ if(particles.length>500) particles.shift(); particles.push({x,y,vx,vy,life,max:life,color,size,grav}); }
+function burst(x,y,n,colors,spd=200,life=0.8,size=3){ for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2,s=Math.random()*spd; addP(x,y,Math.cos(a)*s,Math.sin(a)*s-60,life*(0.5+Math.random()*0.7),colors[(Math.random()*colors.length)|0],size); } }
+function earn(n){ P.money+=n; G.totalEarned+=n; }
+function damage(n,cause){
+  if(P.dead||n<=0) return;
+  P.hull-=n; flash=Math.min(0.6,0.2+n/40); cam.shake=Math.max(cam.shake,Math.min(10,3+n/4)); Sfx.hurt();
+  if(n>=1) toast(`-${n.toFixed(n<10?1:0)} HP  ${cause||''}`,'#ff5a4f',1.4);
+  if(P.hull<=0){ P.hull=0; die('hull',cause); }
+}
+function die(kind,cause){
+  if(P.dead) return;
+  P.dead=0.001; P.drill=null;
+  if(kind==='hull'){ P.deadReason=`Skroget ble ødelagt${cause?' ('+cause.toLowerCase()+')':''}.`; Sfx.boom();
+    burst(P.x,P.y,70,['#ffcf40','#ff7a20','#ff3a10','#333','#777'],380,1.3,4); cam.shake=14; }
+  else { P.deadReason='Tom for drivstoff. Poden står stille i mørket, og ingen kommer.'; Sfx.tone(300,0.8,'triangle',0.06,0.3); }
+}
+function zoneAt(){
+  if(!P.onGround) return null;
+  if(Math.floor(P.y/TS)!==W.skyRows-1) return null;
+  const c=P.x/TS; for(const z of ZONES) if(c>=z.x0&&c<z.x1+1) return z; return null;
+}
+function heatFuelMult(d){ return 1+Math.max(0,d-CONFIG.HEAT_START_FT)/1000*CONFIG.HEAT_FUEL_PER_1000FT*(1-radiator()); }
+function heatDps(d){ return Math.max(0,d-CONFIG.HEAT_DMG_START_FT)/1000*CONFIG.HEAT_DMG_PER_1000FT*(1-radiator()); }
+
+/* ===================== Input ===================== */
+const keys={}; const pressed={};
+const KEYMAP={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down'};
+addEventListener('keydown',e=>{
+  Sfx.init();
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault();
+  if(KEYMAP[e.code]) keys[KEYMAP[e.code]]=true;
+  if(!e.repeat) onKey(e.code);
+});
+addEventListener('keyup',e=>{ if(KEYMAP[e.code]) keys[KEYMAP[e.code]]=false; });
+addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; if(state==='play'&&P&&!P.dead) showPause(); });
+function onKey(code){
+  if(state==='play'){
+    if(code==='Escape'||code==='KeyP') return showPause();
+    if(P.dead) return;
+    if(code==='KeyN'){ Sfx.on=!Sfx.on; toast(Sfx.on?'Lyd på':'Lyd av'); }
+    if(code==='KeyE'||code==='Enter'){ const z=zoneAt(); if(z) openShop(z); }
+    const map={KeyF:'fuel',KeyR:'repair',KeyX:'dyn',KeyC:'c4',KeyQ:'qtele',KeyM:'mtele'};
+    if(map[code]) useItem(map[code]);
+  } else if(state==='pause'){ if(code==='Escape'||code==='KeyP') resume(); }
+  else if(state==='shop'){ if(code==='Escape') closeShop(); if(code==='Enter'&&G.shop==='sell') act.sellAll(); }
+  else if(state==='dialog'){ if(code==='Enter'||code==='Space'||code==='Escape') nextDialog(); }
+  else if(state==='menu'){ if(code==='Enter') (readSave()?act.cont():act.newGame()); }
+}
+// berøring
+(function(){
+  if(!('ontouchstart' in window)&&!(navigator.maxTouchPoints>0)) return;
+  const t=document.getElementById('touch'); t.style.display='flex';
+  t.querySelectorAll('[data-k]').forEach(b=>{
+    const k=b.dataset.k;
+    b.addEventListener('pointerdown',e=>{e.preventDefault();Sfx.init();keys[k]=true;});
+    ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false));
+  });
+  t.querySelectorAll('[data-t]').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();Sfx.init();onKey(b.dataset.t);}));
+})();
+
+/* ===================== Oppdatering ===================== */
+function update(dt){
+  animT+=dt;
+  for(let i=toasts.length-1;i>=0;i--){ toasts[i].t-=dt; if(toasts[i].t<=0) toasts.splice(i,1); }
+  if(state!=='play') { updateParticles(dt); return; }
+  G.time+=dt;
+  if(P.dead){
+    P.dead+=dt; updateParticles(dt); updateCamera(dt);
+    if(P.dead>1.8){ showGameOver(); }
+    return;
+  }
+  updatePlayer(dt);
+  updateQuake(dt);
+  if(B) updateBoss(dt);
+  updateFireballs(dt);
+  updateParticles(dt);
+  updateCamera(dt);
+  checkStory();
+  // butikksoner
+  const z=zoneAt();
+  if(z&&z!==P.lastZone&&Math.abs(P.vx)<60&&!P.drill){ P.lastZone=z; openShop(z); return; }
+  if(!z) P.lastZone=null;
+  // lav drivstoff-advarsel
+  if(P.fuel<maxFuel()*0.2){ if(!P.lowFuelWarned){ P.lowFuelWarned=true; toast('LAVT DRIVSTOFF!','#ff5a4f',3); Sfx.warn(); } }
+  else P.lowFuelWarned=false;
+  if(P.fuel<=0){ P.fuel=0; die('fuel'); }
+}
+
+function updatePlayer(dt){
+  const hw=CONFIG.POD_W/2, hh=CONFIG.POD_H/2;
+  const depth=depthFtAtY(P.y), fm=heatFuelMult(depth);
+  if(P.drill){
+    const d=P.drill; d.t+=dt; const f=clamp(d.t/d.dur,0,1);
+    P.x=lerp(d.sx,d.tx,f); P.y=lerp(d.sy,d.ty,f);
+    P.fuel-=(CONFIG.FUEL_DRILL+CONFIG.FUEL_IDLE)*fm*dt;
+    const hd=heatDps(depthFtRow(d.r));
+    if(hd>0){ P.hull-=hd*dt; P.heatHurt=0.3; if(P.hull<=0){ P.hull=0; die('hull','Overoppheting'); return; } }
+    P.drillSnd-=dt; if(P.drillSnd<=0){ P.drillSnd=0.11; Sfx.drill(); }
+    if(Math.random()<0.6){
+      const ex=d.dir==='down'?P.x:P.x+(d.dir==='right'?14:-14), ey=d.dir==='down'?P.y+14:P.y+4;
+      const s=STRATA[W.rowStrata[d.r]].c; addP(ex+rand(-6,6),ey,rand(-90,90),rand(-160,-40),0.5,s[(Math.random()*4)|0],3);
+    }
+    if(f>=1) finishDrill();
+    return;
+  }
+  P.heatHurt=Math.max(0,P.heatHurt-dt);
+  const dir=(keys.right?1:0)-(keys.left?1:0);
+  const up=!!keys.up;
+  P.thrust=up;
+  const pw=enginePower();
+  const hmax=CONFIG.H_MAX*(1+(pw-150)/1500);
+  if(dir){ P.facing=dir;
+    if(Math.sign(P.vx)===-dir) P.vx+=dir*CONFIG.H_FRICTION_GROUND*dt;
+    P.vx=clamp(P.vx+dir*CONFIG.H_ACCEL*dt,-hmax,hmax);
+  } else {
+    const fr=(P.onGround?CONFIG.H_FRICTION_GROUND:CONFIG.H_FRICTION_AIR)*dt;
+    P.vx=Math.abs(P.vx)<=fr?0:P.vx-Math.sign(P.vx)*fr;
+  }
+  if(up){
+    const acc=CONFIG.THRUST_K*pw/(CONFIG.BASE_MASS+cargoMass()*CONFIG.CARGO_MASS_FACTOR);
+    P.vy+=(CONFIG.GRAVITY-acc)*dt;
+    const maxRise=CONFIG.MAX_RISE*(1+(pw-150)/1200);
+    if(P.vy<-maxRise) P.vy=-maxRise;
+    if(Math.random()<0.5) addP(P.x+rand(-8,8),P.y+14,rand(-30,30),rand(60,140),0.35,Math.random()<0.5?'#ffb040':'#888',2,0);
+  } else P.vy+=CONFIG.GRAVITY*dt;
+  if(P.vy>CONFIG.MAX_FALL) P.vy=CONFIG.MAX_FALL;
+
+  // X
+  P.x+=P.vx*dt; P.blockX=0;
+  let top=Math.floor((P.y-hh+0.5)/TS), bot=Math.floor((P.y+hh-0.5)/TS);
+  if(P.vx>0){ const c=Math.floor((P.x+hw)/TS); for(let r=top;r<=bot;r++) if(solid(c,r)){ P.x=c*TS-hw-0.01; P.vx=0; P.blockX=1; break; } }
+  else if(P.vx<0){ const c=Math.floor((P.x-hw)/TS); for(let r=top;r<=bot;r++) if(solid(c,r)){ P.x=(c+1)*TS+hw+0.01; P.vx=0; P.blockX=-1; break; } }
+  else if(dir){ // presser mot vegg i ro
+    const c=Math.floor((P.x+dir*(hw+1))/TS); for(let r=top;r<=bot;r++) if(solid(c,r)){ P.blockX=dir; break; } }
+  // Y
+  const preVy=P.vy; P.y+=P.vy*dt; P.onGround=false;
+  const l=Math.floor((P.x-hw+0.5)/TS), rr=Math.floor((P.x+hw-0.5)/TS);
+  // hjelp inn i 1-rute brede sjakter: dytt mot sjaktens midte hvis kanten tar tak
+  if(!dir&&Math.abs(P.vy)>60&&l!==rr){ const ry=Math.floor((P.vy>0?P.y+hh:P.y-hh)/TS), cc=Math.floor(P.x/TS);
+    if(!solid(cc,ry)&&(solid(l,ry)||solid(rr,ry))){ const tx=(cc+0.5)*TS; const stp=Math.min(Math.abs(tx-P.x),160*dt); P.x+=Math.sign(tx-P.x)*stp; } }
+  if(P.vy>0){ const r=Math.floor((P.y+hh)/TS); for(let c=l;c<=rr;c++) if(solid(c,r)){ P.y=r*TS-hh-0.01; P.vy=0; P.onGround=true;
+      if(preVy>CONFIG.FALL_DMG_SPEED) damage((preVy-CONFIG.FALL_DMG_SPEED)*CONFIG.FALL_DMG_PER,'Fallskade');
+      if(preVy>250) burst(P.x,P.y+hh,6,['#999','#654'],80,0.4,2);
+      break; } }
+  else if(P.vy<0){ const r=Math.floor((P.y-hh)/TS); for(let c=l;c<=rr;c++) if(solid(c,r)){ P.y=(r+1)*TS+hh+0.01; P.vy=0; break; } }
+  if(P.y-hh<0){ P.y=hh; P.vy=Math.max(0,P.vy); }
+  if(P.dead) return;
+
+  // fuel
+  let rate=CONFIG.FUEL_IDLE+(dir?CONFIG.FUEL_MOVE:0)+(up?CONFIG.FUEL_FLY:0);
+  P.fuel-=rate*fm*dt;
+
+  // start boring
+  if(P.onGround&&!up){
+    if(keys.down){ const c=Math.floor(P.x/TS), r=Math.floor((P.y+hh+2)/TS); if(diggable(getT(c,r))) startDrill(c,r,'down'); }
+    else if(dir&&P.blockX===dir){ const r=Math.floor(P.y/TS), c=Math.floor((P.x+dir*(hw+2))/TS);
+      if(diggable(getT(c,r))) startDrill(c,r,dir>0?'right':'left'); }
+  }
+  const d=depthFtAtY(P.y); if(d>P.maxDepth) P.maxDepth=d;
+}
+function tileHard(t){ if(isMineral(t)) return CONFIG.MINERALS[t-T_MIN].hard; if(isArtifact(t)) return 1.2; if(t===T_LAVA) return 0.8; return 1; }
+function startDrill(c,r,dir){
+  const t=getT(c,r); const d=Math.max(0,depthFtRow(r));
+  const dur=Math.max(CONFIG.DRILL_MIN_TIME, CONFIG.DRILL_BASE_TIME*tileHard(t)*(1+d/CONFIG.DRILL_DEPTH_FT)*CONFIG.DRILL_BASE_POWER/drillPower());
+  const hh=CONFIG.POD_H/2;
+  P.drill={c,r,dir,t:0,dur,sx:P.x,sy:P.y,tx:(c+0.5)*TS,ty:dir==='down'?(r+1)*TS-hh-0.01:P.y};
+  P.vx=0;P.vy=0;
+  if(dir!=='down') P.facing=dir==='right'?1:-1;
+}
+function finishDrill(){
+  const {c,r}=P.drill; const t=getT(c,r); const d=depthFtRow(r);
+  setT(c,r,T_EMPTY); P.drill=null; P.vx=0; P.vy=0;
+  const cx=(c+0.5)*TS, cy=(r+0.5)*TS;
+  if(isMineral(t)){
+    const i=t-T_MIN, m=CONFIG.MINERALS[i];
+    if(cargoCount()<cargoCap()){ P.cargo[i]++; toast(`+ ${m.name}`,m.hi,1.6); Sfx.collect(); burst(cx,cy,10,[m.col,m.hi],120,0.5,2); }
+    else { toast('Lasterommet er fullt! Mineralet gikk tapt.','#ff8a3d',2); Sfx.warn(); burst(cx,cy,8,[m.col],100,0.4,2); }
+  } else if(isArtifact(t)){
+    const a=CONFIG.ARTIFACTS[t-T_ART]; earn(a.value); toast(`Artefakt funnet: ${a.name}  +${fmt$(a.value)}`,'#ffd070',3.5); Sfx.cash();
+    burst(cx,cy,24,['#ffd070','#fff'],160,0.8,2);
+  } else if(t===T_GAS){
+    const H=CONFIG.HAZARDS; const dmg=H.GAS_DMG_BASE+d/1000*H.GAS_DMG_PER_1000FT;
+    Sfx.boom(); burst(cx,cy,40,['#c0ff80','#ffe060','#ff8030','#555'],300,0.9,4);
+    for(let dc=-1;dc<=1;dc++)for(let dr=-1;dr<=1;dr++){ const tt=getT(c+dc,r+dr); if(tt===T_DIRT) setT(c+dc,r+dr,T_EMPTY); }
+    damage(dmg,'Gasseksplosjon');
+  } else if(t===T_LAVA){
+    const H=CONFIG.HAZARDS; const dmg=H.LAVA_DMG_BASE+d/1000*H.LAVA_DMG_PER_1000FT;
+    burst(cx,cy,30,['#ff4010','#ffb030','#ffe080'],220,0.8,3); Sfx.noise(0.4,0.2,1200);
+    damage(dmg,'Lava');
+  }
+}
+
+/* ===================== Forbruksvarer ===================== */
+function useItem(k){
+  if(P.items[k]<=0){ toast(`Du har ingen ${CONFIG.ITEMS[k].name.toLowerCase()} (${CONFIG.ITEMS[k].key})`,'#b09580',1.6); return; }
+  const it=CONFIG.ITEMS[k];
+  if((k==='dyn'||k==='c4'||k==='qtele'||k==='mtele')&&P.drill){ toast('Ikke mens du borer','#b09580',1.2); return; }
+  if(k==='fuel'){ if(P.fuel>=maxFuel()-0.01) return toast('Tanken er full','#b09580',1.2); P.fuel=Math.min(maxFuel(),P.fuel+it.amount); Sfx.blip(); toast(`+${it.amount} L drivstoff`,'#7bd88f'); }
+  else if(k==='repair'){ if(P.hull>=maxHull()) return toast('Skroget er helt','#b09580',1.2); P.hull=Math.min(maxHull(),P.hull+it.amount); Sfx.blip(); toast(`+${it.amount} HP`,'#7bd88f'); burst(P.x,P.y,16,['#7bd88f','#fff'],100,0.6,2); }
+  else if(k==='dyn'||k==='c4'){ explode(Math.floor(P.x/TS),Math.floor(P.y/TS),it.radius,k); }
+  else if(k==='qtele'){
+    const c=2+Math.floor(Math.random()*(W.cols-4));
+    burst(P.x,P.y,30,['#a080ff','#fff'],200,0.6,3);
+    P.x=(c+0.5)*TS; P.y=(W.skyRows-6)*TS; P.vx=0; P.vy=0;
+    const lost=cargoCount(); P.cargo=P.cargo.map(()=>0);
+    toast(lost?'Kvantehopp! Lasten gikk tapt i støyen.':'Kvantehopp!','#c0a0ff',2.5); Sfx.tone(300,0.4,'sine',0.06,4);
+    cam.y=P.y-VH/2;
+  } else if(k==='mtele'){
+    burst(P.x,P.y,30,['#80e0ff','#fff'],200,0.6,3);
+    const z=ZONES[0]; P.x=((z.x0+z.x1+1)/2)*TS; P.y=W.skyRows*TS-CONFIG.POD_H/2-0.01; P.vx=0; P.vy=0;
+    toast('Materietransmisjon fullført','#80e0ff',2.5); Sfx.tone(400,0.4,'sine',0.06,3);
+    cam.y=P.y-VH/2; P.lastZone=null;
+  }
+  P.items[k]--;
+}
+function explode(c0,r0,rad,kind){
+  Sfx.boom(); cam.shake=kind==='c4'?16:10;
+  for(let dc=-rad;dc<=rad;dc++)for(let dr=-rad;dr<=rad;dr++){
+    const c=c0+dc,r=r0+dr; if(r<W.skyRows) continue; const t=getT(c,r);
+    if(t!==T_EMPTY&&!indestructible(t)){ setT(c,r,T_EMPTY); burst((c+.5)*TS,(r+.5)*TS,6,['#ffcf40','#ff7a20','#555'],200,0.7,3); }
+  }
+  burst(c0*TS+TS/2,r0*TS+TS/2,50,['#fff6a0','#ffb030','#ff5010','#444'],kind==='c4'?420:300,1.0,4);
+  if(B&&!B.dying){ const dx=B.x-(c0+.5)*TS, dy=B.y-(r0+.5)*TS, R=(rad+0.5)*TS+CONFIG.BOSS.RADIUS;
+    if(dx*dx+dy*dy<R*R) damageBoss(kind==='c4'?CONFIG.BOSS.C4_DMG:CONFIG.BOSS.DYN_DMG); }
+}
+
+/* ===================== Historie, jordskjelv ===================== */
+function checkStory(){
+  if(!G||!P) return;
+  CONFIG.STORY.forEach((s,i)=>{
+    if(G.storyDone.includes(i)) return;
+    if(P.maxDepth>=s.ft){ G.storyDone.push(i); if(s.bonus) earn(s.bonus); queueDialog({...s,idx:i}); if(s.quake) G.quakeAfterDialog=true; }
+  });
+  if(!G.bossStarted&&Math.floor(P.y/TS)>=W.arenaTop&&Math.floor(P.y/TS)<=W.arenaBottom){
+    G.bossStarted=true; spawnBoss();
+    queueDialog({who:'KJERNEVOKTEREN',glitch:1,boss:true,text:
+`Endelig.
+
+Ti tusen år under denne skorpen, og så kommer en liten maskin med et bor og åpner døren for meg.
+
+Takk for alle leveransene, operatør. Nå skal du levere den siste: deg selv.`});
+  }
+}
+function queueDialog(d){ G.dialogs.push(d); if(state==='play') showNextDialog(); }
+function startQuake(){ G.quake={t:0,applied:false}; toast('JORDSKJELV!','#ffb040',3); Sfx.noise(2.5,0.25,200); }
+function updateQuake(dt){
+  const q=G.quake; if(!q) return;
+  q.t+=dt; cam.shake=Math.max(cam.shake,7);
+  if(Math.random()<0.4) addP(cam.x+Math.random()*VW,cam.y+Math.random()*VH*0.3,rand(-20,20),rand(0,60),1.2,'#6a4a3a',2);
+  if(!q.applied&&q.t>CONFIG.QUAKE_DURATION*0.5){
+    q.applied=true;
+    const rnd=Math.random, pc=Math.floor(P.x/TS), pr=Math.floor(P.y/TS);
+    for(let r=W.skyRows+3;r<W.arenaTop-1;r++) for(let c=1;c<W.cols-1;c++){
+      if(getT(c,r)!==T_EMPTY) continue;
+      if(Math.abs(c-pc)<=1&&Math.abs(r-pr)<=1) continue;
+      if(rnd()<CONFIG.QUAKE_REFILL){ let t=genTile(r,rnd); if(t===T_EMPTY) t=T_DIRT; setT(c,r,t); }
+    }
+    toast('Tunnelene har rast sammen ...','#ffb040',3);
+  }
+  if(q.t>=CONFIG.QUAKE_DURATION) G.quake=null;
+}
+
+/* ===================== Sjef ===================== */
+function arenaBounds(){ const R=CONFIG.BOSS.RADIUS; return {x0:TS+R,x1:(W.cols-1)*TS-R,y0:W.arenaTop*TS+R,y1:(W.arenaBottom+1)*TS-R}; }
+function spawnBoss(){
+  const b=arenaBounds();
+  B={x:(b.x0+b.x1)/2,y:b.y0+60,vx:0,vy:0,hp:CONFIG.BOSS.HP,max:CONFIG.BOSS.HP,phase:0,st:'hover',timer:0,
+     fire:2.5,charge:rand(...CONFIG.BOSS.CHARGE_CD[0]),hitCD:0,contactCD:0,hits:0,flash:0,dying:0,eye:0};
+}
+function damageBoss(n){
+  if(!B||B.dying) return;
+  B.hp-=n; B.flash=0.25; Sfx.tone(140,0.2,'sawtooth',0.07,0.6); toast(`${CONFIG.BOSS.NAME} -${Math.round(n)}`,'#ff9aa8',1.2);
+  burst(B.x,B.y,20,['#ff4060','#ffd0e0','#fff'],240,0.7,3);
+  if(B.phase===0&&B.hp<=B.max/2){ B.phase=1; toast('Kjernevokteren raser!','#ff4060',3); cam.shake=12; Sfx.noise(1,0.2,300); }
+  if(B.hp<=0){ B.hp=0; B.dying=0.001; fireballs.length=0; Sfx.boom(); }
+}
+function updateBoss(dt){
+  const C=CONFIG.BOSS, b=arenaBounds(), ph=B.phase;
+  B.flash=Math.max(0,B.flash-dt); B.hitCD-=dt; B.contactCD-=dt; B.eye+=dt;
+  if(B.dying){
+    B.dying+=dt; cam.shake=8;
+    if(Math.random()<0.5) burst(B.x+rand(-40,40),B.y+rand(-40,40),8,['#ff4060','#ffcf40','#fff','#b050ff'],260,0.8,3);
+    if(B.dying>2.6){ bossDefeated(); }
+    return;
+  }
+  const inArena=Math.floor(P.y/TS)>=W.arenaTop-4;
+  if(!inArena) return;
+  if(B.st==='hover'){
+    const tx=(b.x0+b.x1)/2+Math.sin(G.time*0.55)*(b.x1-b.x0)*0.38, ty=b.y0+50+Math.sin(G.time*1.3)*40;
+    B.vx+=(tx-B.x)*3*dt-B.vx*1.8*dt; B.vy+=(ty-B.y)*3*dt-B.vy*1.8*dt;
+    B.x+=B.vx*dt; B.y+=B.vy*dt;
+    B.fire-=dt;
+    if(B.fire<=0&&!P.dead){ B.fire=C.FIRE_CD[ph]; const a=Math.atan2(P.y-B.y,P.x-B.x);
+      const angs=ph?[a-0.26,a,a+0.26]:[a];
+      for(const an of angs) fireballs.push({x:B.x+Math.cos(an)*C.RADIUS,y:B.y+Math.sin(an)*C.RADIUS,vx:Math.cos(an)*C.FIRE_SPEED[ph],vy:Math.sin(an)*C.FIRE_SPEED[ph],life:5,dmg:C.FIRE_DMG[ph]});
+      Sfx.tone(220,0.15,'square',0.04,0.5); }
+    B.charge-=dt;
+    if(B.charge<=0){ B.st='windup'; B.timer=0.9; const a=Math.atan2(P.y-B.y,P.x-B.x); B.cdx=Math.cos(a); B.cdy=Math.sin(a); Sfx.tone(90,0.9,'sawtooth',0.06,2); }
+  } else if(B.st==='windup'){
+    B.timer-=dt; B.x+=rand(-2,2); B.y+=rand(-2,2);
+    if(B.timer<=0){ B.st='charge'; B.vx=B.cdx*C.CHARGE_SPEED[ph]; B.vy=B.cdy*C.CHARGE_SPEED[ph]; }
+  } else if(B.st==='charge'){
+    B.x+=B.vx*dt; B.y+=B.vy*dt;
+    if(B.x<b.x0||B.x>b.x1||B.y<b.y0||B.y>b.y1){
+      B.x=clamp(B.x,b.x0,b.x1); B.y=clamp(B.y,b.y0,b.y1); B.vx=0; B.vy=0;
+      B.st='stunned'; B.timer=C.STUN_TIME[ph]; B.hits=0; cam.shake=12; Sfx.boom();
+      burst(B.x,B.y,30,['#888','#555','#ffb040'],260,0.9,4);
+      toast('Kjernen er blottlagt – RAM DEN MED BORET!','#ffd070',2);
+    }
+  } else if(B.st==='stunned'){
+    B.timer-=dt; B.y=Math.min(b.y1,B.y+30*dt);
+    if(B.timer<=0){ B.st='hover'; B.charge=rand(...C.CHARGE_CD[ph]); }
+  }
+  // kontakt med spiller
+  if(!P.dead){
+    const dx=P.x-B.x, dy=P.y-B.y, dist=Math.hypot(dx,dy);
+    if(dist<C.RADIUS+14){
+      const nx=dx/(dist||1), ny=dy/(dist||1);
+      if(B.st==='stunned'){
+        if(B.hitCD<=0&&B.hits<C.MAX_HITS_PER_STUN){ B.hitCD=0.45; B.hits++; damageBoss(C.DRILL_DMG_BASE+drillPower()*C.DRILL_DMG_PER_POWER); P.vx=nx*260; P.vy=ny*200-120; P.drill=null; }
+      } else if(B.contactCD<=0){ B.contactCD=1; damage(C.CONTACT_DMG[ph],'Kjernevokteren'); P.vx=nx*320; P.vy=ny*260-160; P.drill=null; }
+    }
+  }
+}
+function updateFireballs(dt){
+  for(let i=fireballs.length-1;i>=0;i--){
+    const f=fireballs[i]; f.x+=f.vx*dt; f.y+=f.vy*dt; f.life-=dt;
+    if(Math.random()<0.6) addP(f.x,f.y,rand(-20,20),rand(-20,20),0.3,Math.random()<0.5?'#ff5010':'#ffcf40',2,0);
+    let gone=f.life<=0||solid(Math.floor(f.x/TS),Math.floor(f.y/TS));
+    if(!gone&&!P.dead&&Math.abs(f.x-P.x)<17&&Math.abs(f.y-P.y)<17){ damage(f.dmg,'Ildkule'); gone=true; }
+    if(gone){ burst(f.x,f.y,8,['#ff5010','#ffcf40'],120,0.4,2); fireballs.splice(i,1); }
+  }
+}
+function bossDefeated(){
+  const reward=CONFIG.BOSS.REWARD;
+  burst(B.x,B.y,120,['#fff','#ff4060','#b050ff','#ffcf40'],500,1.6,4);
+  B=null; G.bossDefeated=true; earn(reward);
+  if(W.hasExtra){ for(let c=1;c<W.cols-1;c++) setT(c,W.sealRow,T_EMPTY); }
+  startQuake(); G.quake.applied=true; // bare risting – ingen gjenfylling
+  queueDialog({who:'S. KRANE',glitch:0.1,bonus:reward,text:
+`... operatør? Er du der?
+
+Jeg ... jeg husker ikke hvordan jeg kom hit. Det er som å våkne fra en lang drøm i noen andres hode.
+
+Signalet fra dypet er borte. Mars er stille igjen.
+${W.hasExtra?'\nMen forseglingen under deg er brutt, og der nede glitrer det noe ingen har sett før ...':''}`});
+  G.pendingVictory=true;
+}
+
+/* ===================== Partikler og kamera ===================== */
+function updateParticles(dt){
+  for(let i=particles.length-1;i>=0;i--){ const p=particles[i]; p.life-=dt; if(p.life<=0){particles.splice(i,1);continue;}
+    p.vy+=p.grav*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; }
+}
+function updateCamera(dt){
+  if(!P) return;
+  const tx=clamp(P.x-VW/2,0,W.cols*TS-VW), ty=clamp(P.y-VH/2,-40,W.rows*TS-VH);
+  cam.x+=(tx-cam.x)*Math.min(1,8*dt); cam.y+=(ty-cam.y)*Math.min(1,8*dt);
+  cam.shake=Math.max(0,cam.shake-dt*14); flash=Math.max(0,flash-dt*1.5);
+}
+
+/* ===================== Tegning ===================== */
+const cv=document.getElementById('game'), ctx=cv.getContext('2d');
+ctx.imageSmoothingEnabled=false;
+const MOUNT=[[],[]];
+(function(){ const r=mulberry32(42); for(let L=0;L<2;L++){ let h=40; for(let i=0;i<400;i++){ h+= (r()-0.5)*(L?6:10); h=clamp(h,15,L?55:90); MOUNT[L].push(h);} } })();
+
+function render(){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,VW,VH);
+  if(!W) return;
+  const sx=(Math.random()-0.5)*cam.shake, sy=(Math.random()-0.5)*cam.shake;
+  const ox=Math.round(cam.x+sx), oy=Math.round(cam.y+sy);
+  const surfY=W.skyRows*TS-oy;
+  // himmel
+  if(surfY>0){
+    const g=ctx.createLinearGradient(0,-oy,0,surfY);
+    g.addColorStop(0,'#1a0c1e'); g.addColorStop(0.55,'#6a2a2a'); g.addColorStop(1,'#d0703a');
+    ctx.fillStyle=g; ctx.fillRect(0,0,VW,surfY);
+    // sol
+    ctx.fillStyle='rgba(255,220,180,.85)'; ctx.fillRect(560-ox*0.05,surfY-230,14,14);
+    ctx.fillStyle='rgba(255,220,180,.2)'; ctx.fillRect(554-ox*0.05,surfY-236,26,26);
+    // fjell
+    const cols2=['#4a1c18','#6e2a1c'];
+    for(let L=0;L<2;L++){ ctx.fillStyle=cols2[L]; const par=L?0.5:0.25;
+      for(let x=0;x<VW;x+=4){ const i=Math.floor((x+ox*par)/8); const h=MOUNT[L][((i%400)+400)%400]*(L?1:1.6);
+        ctx.fillRect(x,surfY-h,4,h); } }
+  }
+  // tunnelbakgrunn
+  const r0=Math.max(W.skyRows,Math.floor(oy/TS)), r1=Math.min(W.rows-1,Math.floor((oy+VH)/TS));
+  for(let r=r0;r<=r1;r++){ ctx.fillStyle=STRATA[W.rowStrata[r]].tunnel; ctx.fillRect(0,r*TS-oy,VW,TS); }
+  // ruter
+  const c0=Math.max(0,Math.floor(ox/TS)), c1=Math.min(W.cols-1,Math.floor((ox+VW)/TS));
+  const rs=Math.max(0,Math.floor(oy/TS));
+  const lavaF=SPR.lava[Math.floor(animT*3)%2];
+  for(let r=rs;r<=r1;r++){
+    const st=W.rowStrata[r];
+    for(let c=c0;c<=c1;c++){
+      const t=W.grid[r*W.cols+c]; if(t===T_EMPTY) continue;
+      const x=c*TS-ox, y=r*TS-oy;
+      if(t===T_BEDROCK) ctx.drawImage(SPR.bedrock,x,y);
+      else if(t===T_CONCRETE) ctx.drawImage(SPR.concrete,x,y);
+      else if(t===T_SEAL){ ctx.drawImage(SPR.seal,x,y); ctx.fillStyle=`rgba(176,80,255,${0.08+0.08*Math.sin(animT*3+c)})`; ctx.fillRect(x,y,TS,TS); }
+      else if(t===T_LAVA&&CONFIG.HAZARDS.LAVA_VISIBLE) ctx.drawImage(lavaF,x,y);
+      else {
+        ctx.drawImage(SPR.dirt[st][(c*7+r*13)&3],x,y);
+        if(isMineral(t)) ctx.drawImage(SPR.ore[t-T_MIN],x,y);
+        else if(isArtifact(t)) ctx.drawImage(SPR.art[t-T_ART],x,y);
+        else if(t===T_ROCK) ctx.drawImage(SPR.rock,x,y);
+        else if(t===T_GAS&&CONFIG.HAZARDS.GAS_VISIBLE) ctx.drawImage(SPR.gasTint,x,y);
+      }
+      // kanter
+      if(r>=W.skyRows){
+        if(getT(c,r-1)===T_EMPTY){ ctx.fillStyle=r===W.skyRows?'#b8603a':'rgba(255,210,170,.14)'; ctx.fillRect(x,y,TS,r===W.skyRows?4:2); }
+        ctx.fillStyle='rgba(0,0,0,.38)';
+        if(getT(c,r+1)===T_EMPTY) ctx.fillRect(x,y+TS-3,TS,3);
+        if(getT(c-1,r)===T_EMPTY) ctx.fillRect(x,y,2,TS);
+        if(getT(c+1,r)===T_EMPTY) ctx.fillRect(x+TS-2,y,2,TS);
+      }
+    }
+  }
+  if(surfY>-120&&surfY<VH+200) drawBuildings(ox,oy);
+  if(P&&state!=='menu'&&!(P.dead&&P.deadReason.startsWith('Skroget'))) drawPod(P.x-ox,P.y-oy);
+  for(const p of particles){ ctx.globalAlpha=clamp(p.life/p.max*1.5,0,1); ctx.fillStyle=p.color; ctx.fillRect(Math.round(p.x-ox),Math.round(p.y-oy),p.size,p.size); }
+  ctx.globalAlpha=1;
+  // mørke
+  if(P&&state!=='menu'){
+    const d=depthFtAtY(P.y);
+    if(d>0){
+      const k=clamp(d/6000,0,1), inArena=B&&Math.floor(P.y/TS)>=W.arenaTop-2;
+      const a=lerp(0.35,0.9,k)*clamp(d/200,0,1)*(inArena?0.55:1);
+      const inner=inArena?300:lerp(230,115,k), outer=inArena?620:lerp(480,300,k);
+      const px=P.x-ox, py=P.y-oy;
+      const tint=d>6300&&d<7010?'25,0,0':d>=7010?'0,4,18':'4,0,0';
+      const g=ctx.createRadialGradient(px,py,inner,px,py,outer);
+      g.addColorStop(0,`rgba(${tint},0)`); g.addColorStop(1,`rgba(${tint},${a})`);
+      ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
+      // lavagløding over mørket
+      if(CONFIG.HAZARDS.LAVA_VISIBLE){ ctx.globalCompositeOperation='lighter';
+        for(let r=rs;r<=r1;r++)for(let c=c0;c<=c1;c++) if(W.grid[r*W.cols+c]===T_LAVA){ ctx.fillStyle=`rgba(255,80,20,${0.12+0.05*Math.sin(animT*4+c+r)})`; ctx.fillRect(c*TS-ox-4,r*TS-oy-4,TS+8,TS+8); }
+        ctx.globalCompositeOperation='source-over'; }
+    }
+  }
+  if(B) drawBoss(ox,oy);
+  for(const f of fireballs){ ctx.fillStyle='rgba(255,80,16,.25)'; ctx.fillRect(f.x-ox-11,f.y-oy-11,22,22); ctx.fillStyle='#ff5010'; ctx.fillRect(f.x-ox-6,f.y-oy-6,12,12); ctx.fillStyle='#ffcf40'; ctx.fillRect(f.x-ox-3,f.y-oy-3,6,6); }
+  if(B) drawBossBar();
+  if(flash>0){ ctx.fillStyle=`rgba(255,40,20,${flash*0.5})`; ctx.fillRect(0,0,VW,VH); }
+  if(P&&P.heatHurt>0){ ctx.fillStyle=`rgba(255,120,0,${0.07+0.04*Math.sin(animT*10)})`; ctx.fillRect(0,0,VW,VH); }
+  if(G&&G.quake){ ctx.fillStyle='rgba(60,30,10,.12)'; ctx.fillRect(0,0,VW,VH); }
+  if(state!=='menu') drawHUD();
+}
+
+function drawBuildings(ox,oy){
+  const gy=W.skyRows*TS-oy;
+  for(const z of ZONES){
+    const x=z.x0*TS-ox, w=(z.x1-z.x0+1)*TS;
+    if(x>VW||x+w<0) continue;
+    const h=z.id==='sell'?104:z.id==='upgrade'?96:84;
+    // skygge og kropp
+    ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(x+6,gy-h+6,w,h-6);
+    ctx.fillStyle=shade(z.col,-0.3); ctx.fillRect(x,gy-h,w,h);
+    ctx.fillStyle=z.col; ctx.fillRect(x+4,gy-h+4,w-8,h-8);
+    ctx.fillStyle=shade(z.col,0.2); ctx.fillRect(x+4,gy-h+4,w-8,4);
+    // tak
+    ctx.fillStyle='#2a1a14'; ctx.fillRect(x-6,gy-h-8,w+12,10);
+    ctx.fillStyle='#4a2e20'; ctx.fillRect(x-6,gy-h-8,w+12,3);
+    // åpning
+    ctx.fillStyle='#120806'; ctx.fillRect(x+w/2-26,gy-44,52,44);
+    ctx.fillStyle='rgba(255,200,120,.12)'; ctx.fillRect(x+w/2-26,gy-44,52,6);
+    for(let i=0;i<6;i++){ ctx.fillStyle=i%2?'#2a1a10':'#3a2414'; ctx.fillRect(x+w/2-26,gy-44+i*7,52,1); }
+    // detaljer per bygg
+    if(z.id==='fuel'){ ctx.fillStyle='#ddd'; ctx.fillRect(x+8,gy-34,12,34); ctx.fillStyle=z.col2; ctx.fillRect(x+10,gy-30,8,8); ctx.fillStyle='#222'; ctx.fillRect(x+20,gy-24,4,2); ctx.fillRect(x+23,gy-24,2,14); }
+    if(z.id==='sell'){ ctx.fillStyle='#3a3f46'; ctx.fillRect(x+w-30,gy-h-40,16,40); ctx.fillStyle='#2a2e34'; ctx.fillRect(x+w-32,gy-h-44,20,6);
+      const sm=(animT*20)%40; ctx.fillStyle='rgba(180,170,160,.35)'; ctx.fillRect(x+w-28+Math.sin(animT)*3,gy-h-52-sm,10,8); ctx.fillRect(x+w-24,gy-h-70-sm,14,10);
+      ctx.fillStyle=z.col2; ctx.fillRect(x+10,gy-h+20,16,10); }
+    if(z.id==='upgrade'){ ctx.save(); ctx.translate(x+22,gy-h+30); ctx.rotate(animT*0.8); ctx.fillStyle=z.col2;
+      for(let i=0;i<6;i++){ ctx.rotate(Math.PI/3); ctx.fillRect(-3,-12,6,6);} ctx.fillRect(-8,-8,16,16); ctx.fillStyle=z.col; ctx.fillRect(-3,-3,6,6); ctx.restore(); }
+    if(z.id==='repair'){ ctx.fillStyle=z.col2; ctx.save(); ctx.translate(x+20,gy-h+28); ctx.rotate(-0.7); ctx.fillRect(-3,-12,6,24); ctx.fillRect(-8,-14,16,6); ctx.restore(); }
+    // skilt
+    ctx.font='bold 11px "Courier New", monospace'; const tw=ctx.measureText(z.name).width;
+    ctx.fillStyle='#120806'; ctx.fillRect(x+w/2-tw/2-6,gy-h-26,tw+12,16);
+    ctx.fillStyle=z.col2; ctx.fillText(z.name,x+w/2-tw/2,gy-h-14);
+    // plattformlys
+    ctx.fillStyle=Math.sin(animT*4)>0?z.col2:'#3a2a1a'; ctx.fillRect(x,gy-2,6,2); ctx.fillRect(x+w-6,gy-2,6,2);
+  }
+}
+
+function drawPod(x,y){
+  x=Math.round(x); y=Math.round(y);
+  ctx.save(); ctx.translate(x,y);
+  const f=P.facing, drilling=!!P.drill, ddir=P.drill?P.drill.dir:null;
+  // propell (rotor) på toppen ved flyging
+  if(P.thrust&&!P.dead){ const w=Math.abs(Math.sin(animT*40))*14+4; ctx.fillStyle='#ccc'; ctx.fillRect(-w,-19,w*2,2); ctx.fillStyle='#555'; ctx.fillRect(-1,-18,2,5); }
+  else { ctx.fillStyle='#777'; ctx.fillRect(-9,-18,18,2); ctx.fillStyle='#555'; ctx.fillRect(-1,-17,2,4); }
+  // belter
+  ctx.fillStyle='#1c1814'; ctx.fillRect(-13,6,26,7);
+  ctx.fillStyle='#4a423c'; const ta=Math.floor((P.x+P.y)/3)%4;
+  for(let i=0;i<7;i++) ctx.fillRect(-12+i*4+((ta+4)%4)-1,8,2,3);
+  // kropp
+  ctx.fillStyle='#8f4f12'; ctx.fillRect(-13,-5,26,12);
+  ctx.fillStyle='#e0922c'; ctx.fillRect(-12,-5,24,10);
+  ctx.fillStyle='#ffc060'; ctx.fillRect(-12,-5,24,2);
+  ctx.fillStyle='#a05a14'; ctx.fillRect(-12,3,24,2);
+  ctx.fillStyle='#2a1a10'; ctx.fillRect(-9*f-2,-1,4,2); // lys/eksos
+  // cockpit
+  ctx.fillStyle='#5a3410'; ctx.fillRect(-8,-13,16,8);
+  ctx.fillStyle='#2f6a8a'; ctx.fillRect(-7,-12,14,7);
+  ctx.fillStyle='#9fe0ff'; ctx.fillRect(f>0?-1:-6,-11,6,3);
+  // frontlykt
+  ctx.fillStyle=depthFtAtY(P.y)>50?'#fff6c0':'#c8b080'; ctx.fillRect(f>0?11:-13,-3,2,3);
+  // bor
+  const spin=Math.floor(animT*(drilling?30:6))%2;
+  const c1=spin?'#d0d0d8':'#8a8a94', c2=spin?'#8a8a94':'#d0d0d8';
+  if(ddir==='down'||(!drilling&&keys.down&&P.onGround&&!P.dead)){
+    for(let i=0;i<5;i++){ ctx.fillStyle=i%2?c1:c2; const w=10-i*2; ctx.fillRect(-w/2,13+i*2,w,2); }
+  } else {
+    const s=ddir? (ddir==='right'?1:-1):f;
+    for(let i=0;i<5;i++){ ctx.fillStyle=i%2?c1:c2; const h=10-i*2; ctx.fillRect(s>0?13+i*2:-15-i*2,1-h/2+1,2,h); }
+  }
+  ctx.restore();
+}
+
+function drawBoss(ox,oy){
+  const x=B.x-ox, y=B.y-oy, R=CONFIG.BOSS.RADIUS, ph=B.phase;
+  if(x<-120||x>VW+120||y<-120||y>VH+120) return;
+  ctx.save(); ctx.translate(Math.round(x),Math.round(y));
+  // aura
+  ctx.fillStyle=ph?'rgba(176,80,255,.18)':'rgba(255,60,40,.15)'; ctx.beginPath(); ctx.arc(0,0,R+14+Math.sin(animT*5)*4,0,7); ctx.fill();
+  // skall – 8 plater som åpner seg når den er lammet
+  const open=B.st==='stunned'?10:B.st==='windup'?3:0;
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4+animT*(B.st==='stunned'?0.1:0.6);
+    ctx.save(); ctx.rotate(a); ctx.translate(R-12+open,0);
+    ctx.fillStyle=B.flash>0?'#fff':ph?'#3a1a4a':'#3a1a14'; ctx.fillRect(-10,-14,20,28);
+    ctx.fillStyle=ph?'#6a3a8a':'#6a2e1e'; ctx.fillRect(-10,-14,20,4);
+    ctx.fillStyle=ph?'#c060ff':'#ff5020'; ctx.fillRect(-2,-8,3,16);
+    ctx.restore();
+  }
+  // kjerne / øye
+  const coreR=B.st==='stunned'?R-8:R-16;
+  ctx.fillStyle=B.flash>0?'#fff':ph?'#e0b0ff':'#ffcf40'; ctx.beginPath(); ctx.arc(0,0,coreR,0,7); ctx.fill();
+  ctx.fillStyle=ph?'#7a20c0':'#ff5010'; ctx.beginPath(); ctx.arc(0,0,coreR*0.7,0,7); ctx.fill();
+  const ex=clamp((P.x-B.x)/20,-8,8), ey=clamp((P.y-B.y)/20,-8,8);
+  ctx.fillStyle='#000'; ctx.fillRect(ex-3,ey-8,6,16);
+  if(B.st==='stunned'){ ctx.fillStyle='#fff'; ctx.font='bold 12px "Courier New"'; ctx.fillText('!',-3,-R-14); }
+  ctx.restore();
+}
+function drawBossBar(){
+  const w=360,x=(VW-w)/2,y=VH-44;
+  ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillRect(x-4,y-18,w+8,32);
+  ctx.font='bold 12px "Courier New", monospace'; ctx.fillStyle='#ff9aa8'; ctx.fillText(CONFIG.BOSS.NAME,x,y-6);
+  ctx.fillStyle='#300'; ctx.fillRect(x,y,w,8); ctx.fillStyle=B.phase?'#c060ff':'#ff4060'; ctx.fillRect(x,y,w*B.hp/B.max,8);
+}
+
+function bar(x,y,w,h,f,col,label,val){
+  ctx.fillStyle='rgba(0,0,0,.75)'; ctx.fillRect(x-2,y-2,w+4,h+4);
+  ctx.fillStyle='#2a1810'; ctx.fillRect(x,y,w,h);
+  ctx.fillStyle=col; ctx.fillRect(x,y,Math.max(0,w*clamp(f,0,1)),h);
+  ctx.fillStyle='rgba(255,255,255,.18)'; ctx.fillRect(x,y,Math.max(0,w*clamp(f,0,1)),2);
+  ctx.fillStyle='#f4e5d2'; ctx.font='bold 11px "Courier New", monospace'; ctx.fillText(label,x+4,y+h-3);
+  const tw=ctx.measureText(val).width; ctx.fillText(val,x+w-tw-4,y+h-3);
+}
+function drawHUD(){
+  if(!P) return;
+  ctx.font='bold 12px "Courier New", monospace';
+  // venstre panel
+  ctx.fillStyle='rgba(10,5,4,.72)'; ctx.fillRect(8,8,236,76);
+  const ff=P.fuel/maxFuel(), hf=P.hull/maxHull();
+  const fcol=ff<0.2?(Math.sin(animT*10)>0?'#ff3a20':'#7a1a10'):ff<0.45?'#e0a030':'#5cc85a';
+  bar(16,16,220,16,ff,fcol,'DRIVSTOFF',`${P.fuel.toFixed(1)}/${maxFuel()} L`);
+  bar(16,38,220,16,hf,hf<0.3?'#ff3a20':'#4a90d8','SKROG',`${Math.ceil(P.hull)}/${maxHull()} HP`);
+  const d=depthFtAtY(P.y), temp=CONFIG.TEMP_SURFACE_C+Math.max(0,d)*CONFIG.TEMP_PER_FT;
+  const hd=heatDps(d);
+  ctx.fillStyle=hd>0?(hd>1?'#ff5a3a':'#ffb040'):'#b09580';
+  ctx.fillText(`VARME ${Math.round(temp)}°C${hd>0?'  ▲ '+(hd>1?'FARLIG':'HØY'):''}`,16,74);
+  // høyre panel
+  ctx.fillStyle='rgba(10,5,4,.72)'; ctx.fillRect(VW-218,8,210,76);
+  ctx.font='bold 20px "Courier New", monospace'; ctx.fillStyle='#7bd88f';
+  const ms=fmt$(P.money); ctx.fillText(ms,VW-14-ctx.measureText(ms).width,32);
+  ctx.font='bold 13px "Courier New", monospace'; ctx.fillStyle='#f4e5d2';
+  const ds=d>=0?`DYBDE  -${Math.floor(d)} ft`:`HØYDE  +${Math.floor(-d)} ft`;
+  ctx.fillText(ds,VW-14-ctx.measureText(ds).width,52);
+  const cc=cargoCount(), cap=cargoCap(); ctx.fillStyle=cc>=cap?'#ff8a3d':'#f4e5d2';
+  const cs=`LAST  ${cc}/${cap}`; ctx.fillText(cs,VW-14-ctx.measureText(cs).width,72);
+  // varer
+  const order=['fuel','repair','dyn','c4','qtele','mtele'], short={fuel:'Drivst.',repair:'Nanobot',dyn:'Dynamitt',c4:'C4',qtele:'Kv.tele',mtele:'Mat.tele'};
+  let x=8; const y=VH-26;
+  ctx.font='bold 11px "Courier New", monospace';
+  for(const k of order){ const n=P.items[k]; const s=`[${CONFIG.ITEMS[k].key}] ${short[k]} ${n}`; const w=ctx.measureText(s).width+12;
+    ctx.fillStyle=n?'rgba(40,20,10,.8)':'rgba(10,5,4,.55)'; ctx.fillRect(x,y,w,18); ctx.fillStyle=n?'#ffc560':'#6a5448'; ctx.fillText(s,x+6,y+13); x+=w+4; }
+  // overflatehint
+  const z=zoneAt();
+  if(z&&state==='play'){ ctx.font='bold 13px "Courier New", monospace'; const s=`Trykk E for å gå inn: ${z.name}`; const w=ctx.measureText(s).width;
+    ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillRect(VW/2-w/2-8,100,w+16,22); ctx.fillStyle='#ffc560'; ctx.fillText(s,VW/2-w/2,116); }
+  // toasts
+  ctx.font='bold 13px "Courier New", monospace';
+  toasts.forEach((t,i)=>{ const a=clamp(t.t/0.4,0,1); ctx.globalAlpha=a; const w=ctx.measureText(t.text).width;
+    const ty=140+i*24-(1-clamp((t.d-t.t)/0.2,0,1))*8; ctx.fillStyle='rgba(0,0,0,.65)'; ctx.fillRect(VW/2-w/2-8,ty-15,w+16,21); ctx.fillStyle=t.color; ctx.fillText(t.text,VW/2-w/2,ty); });
+  ctx.globalAlpha=1;
+  if(!Sfx.on){ ctx.fillStyle='#6a5448'; ctx.fillText('LYD AV (N)',VW-100,VH-12); }
+}
+
+/* ===================== Overlegg (meny, butikker, dialog) ===================== */
+const ov=document.getElementById('ov'), panel=document.getElementById('panel');
+function setState(s){ state=s; if(s==='play'){ ov.classList.remove('show'); panel.innerHTML=''; } }
+function showOv(html){ panel.innerHTML=html; ov.classList.add('show'); panel.scrollTop=0; }
+const act={
+  newGame(){ Sfx.init(); newGame(); },
+  cont(){ Sfx.init(); loadGame(); },
+  load(){ if(!loadGame()) showMenu(); },
+  menu(){ if(state==='pause') saveGame(true); showMenu(); },
+  resume(){ resume(); },
+  save(){ saveGame(); resume(); },
+  help(){ showHelp(); },
+  helpBack(){ if(helpReturn==='pause') showPause(); else showMenu(); },
+  toggleMode(){ CONFIG.ORIGINAL_MODE=!CONFIG.ORIGINAL_MODE; showMenu(); },
+  closeShop(){ closeShop(); },
+  tab(v){ G.shopTab=v; renderShop(); },
+  buyFuel(v){ const need=maxFuel()-P.fuel; let L=v==='fill'?need:Math.min(need,(+v)/CONFIG.FUEL_PRICE);
+    L=Math.min(L,P.money/CONFIG.FUEL_PRICE); if(L<=0.001) return; P.fuel+=L; P.money-=L*CONFIG.FUEL_PRICE; if(P.money<0.005)P.money=0; Sfx.blip(); renderShop(); },
+  repair(v){ const need=maxHull()-P.hull; let H=v==='fill'?need:Math.min(need,(+v)/CONFIG.REPAIR_PRICE);
+    H=Math.min(H,P.money/CONFIG.REPAIR_PRICE); if(H<=0.001) return; P.hull+=H; P.money-=H*CONFIG.REPAIR_PRICE; if(P.money<0.005)P.money=0; Sfx.blip(); renderShop(); },
+  sellAll(){ let tot=0; P.cargo.forEach((n,i)=>tot+=n*CONFIG.MINERALS[i].value); if(!tot) return;
+    earn(tot); P.cargo=P.cargo.map(()=>0); Sfx.cash(); G.lastSale=tot; renderShop(); saveGame(true); },
+  buyUp(v){ const [cat,i]=v.split(':'); const L=CONFIG.UPGRADES[cat].levels[+i]; if(P.money<L.price||+i<=P.lv[cat]) return;
+    P.money-=L.price; P.lv[cat]=+i; if(cat==='hull') P.hull=maxHull(); if(cat==='tank') P.fuel=Math.min(P.fuel,maxFuel());
+    Sfx.cash(); renderShop(); saveGame(true); },
+  buyItem(k){ const it=CONFIG.ITEMS[k]; if(P.money<it.price) return; P.money-=it.price; P.items[k]++; Sfx.blip(); renderShop(); saveGame(true); },
+  next(){ nextDialog(); },
+  victoryCont(){ setState('play'); },
+};
+panel.addEventListener('click',e=>{ const b=e.target.closest('[data-a]'); if(!b||b.disabled) return; Sfx.init(); act[b.dataset.a]&&act[b.dataset.a](b.dataset.v); });
+
+function showMenu(){
+  state='menu'; helpReturn='menu';
+  if(!W){ CONFIG_seedMenuWorld(); }
+  const sv=readSave();
+  showOv(`
+    <h1>DEEP CORE</h1>
+    <div class="sub" style="letter-spacing:3px;margin-bottom:14px">MARS MINER</div>
+    <p>Bor deg ned gjennom Mars-skorpen, hent mineraler, selg dem på basen og oppgrader poden din. Noe venter ved kjernen.</p>
+    ${sv?`<button class="btn big primary" data-a="cont">▶ Fortsett <span class="tag">${fmt$(sv.P.money)} · -${Math.floor(sv.P.maxDepth)} ft${sv.mode?' · original':''}</span></button>`:''}
+    <button class="btn big ${sv?'':'primary'}" data-a="newGame">✚ Nytt spill</button>
+    <button class="btn big" data-a="help">? Kontroller og tips</button>
+    <button class="btn big" data-a="toggleMode">Modus: ${CONFIG.ORIGINAL_MODE?'<b>ORIGINAL</b> – bare originalt omfang':'<b>UTVIDET</b> – med ekstra nivåer, mineraler og endgame-sone'}</button>
+    <p class="hint">Modus gjelder nye spill. Standardverdien settes med CONFIG.ORIGINAL_MODE øverst i filen. Spillet lagres automatisk når du besøker en bygning på overflaten.</p>`);
+}
+function CONFIG_seedMenuWorld(){ buildWorld(12345); P=newPlayer(); P.y=(W.skyRows+3)*TS; cam.x=200; cam.y=(W.skyRows-12)*TS; }
+function showHelp(){
+  showOv(`<h2>Kontroller</h2>
+  <div class="keys" style="margin-top:12px">
+    <b>← → / A D</b><span>Kjør og bor sidelengs (mot en vegg, på bakken)</span>
+    <b>↓ / S</b><span>Bor nedover</span>
+    <b>↑ / W</b><span>Propell – fly oppover (du kan ikke bore oppover)</span>
+    <b>E / Enter</b><span>Gå inn i bygningen du står foran</span>
+    <b>F</b><span>Reservedrivstoff</span><b>R</b><span>Nanobot-reparasjon</span>
+    <b>X</b><span>Dynamitt (3×3)</span><b>C</b><span>C4 (5×5)</span>
+    <b>Q</b><span>Kvanteteleporter (lasten går tapt)</span><b>M</b><span>Materietransmitter (trygg, med last)</span>
+    <b>Esc / P</b><span>Pause</span><b>N</b><span>Lyd av/på</span>
+  </div>
+  <h3>Tips</h3>
+  <p>Drivstoffet er den egentlige grensen. Snu i tide – går du tom, er spillet over. Grå steinblokker kan ikke bores, bare sprenges. Gasslommer ser ut som vanlig jord. Fall fra stor høyde skader skroget. Dypere = varmere: varmen øker drivstofforbruket og skader skroget mens du borer, med mindre radiatoren er god nok.</p>
+  <button class="btn primary" data-a="helpBack">Tilbake</button>`);
+}
+function showPause(){ state='pause'; helpReturn='pause'; showOv(`<h2>Pause</h2><p class="sub">Dybde -${Math.floor(Math.max(0,depthFtAtY(P.y)))} ft · ${fmt$(P.money)} · Spilletid ${fmtTime(G.time)}</p>
+  <button class="btn big primary" data-a="resume">▶ Fortsett</button>
+  <button class="btn big" data-a="save">Lagre nå</button>
+  <button class="btn big" data-a="help">Kontroller</button>
+  <button class="btn big" data-a="menu">Hovedmeny</button>
+  <p class="hint">Merk: lagring midt i en tur betyr at du fortsetter fra akkurat dette stedet.</p>`);
+}
+let helpReturn='menu';
+function resume(){ setState('play'); }
+function fmtTime(s){ const m=Math.floor(s/60),h=Math.floor(m/60); return h?`${h}t ${m%60}m`:`${m}m ${Math.floor(s%60)}s`; }
+function showGameOver(){
+  state='gameover'; const sv=readSave();
+  showOv(`<h1 style="color:#ff5a4f">TAPT</h1><p>${P.deadReason}</p>
+  <p class="sub">Dypeste punkt: -${Math.floor(P.maxDepth)} ft · Tjent totalt: ${fmt$(G.totalEarned)} · Spilletid ${fmtTime(G.time)}</p>
+  ${sv?'<button class="btn big primary" data-a="load">↺ Last siste lagring</button>':''}
+  <button class="btn big ${sv?'':'primary'}" data-a="newGame">✚ Nytt spill</button>
+  <button class="btn big" data-a="menu">Hovedmeny</button>`);
+}
+function showVictory(){
+  state='victory'; saveGame(true);
+  showOv(`<h1>KJERNEN ER STILLE</h1>
+  <p>Du beseiret ${CONFIG.BOSS.NAME} på -${Math.floor(CONFIG.MAIN_DEPTH_FT)} ft. Belønning: <span class="bonus">${fmt$(CONFIG.BOSS.REWARD)}</span>.</p>
+  <p class="sub">Spilletid ${fmtTime(G.time)} · Tjent totalt ${fmt$(G.totalEarned)} · Dypeste punkt -${Math.floor(P.maxDepth)} ft</p>
+  ${W.hasExtra?'<p>Forseglingen er brutt. Endgame-sonen under kjernen er åpen, med nye mineraler og ekstra oppgraderingsnivåer i butikken (merket ★).</p>':'<p>Du spiller i originalmodus – dette er slutten på historien. Du kan likevel fortsette å grave og tjene penger.</p>'}
+  <button class="btn big primary" data-a="victoryCont">▶ Fortsett å grave</button>
+  <button class="btn big" data-a="menu">Hovedmeny</button>`);
+}
+
+/* --- dialog --- */
+function showNextDialog(){
+  const d=G.dialogs[0]; if(!d) return;
+  state='dialog'; Sfx.blip(); setTimeout(()=>Sfx.blip(),90);
+  showOv(`<div class="dlg"><canvas id="portrait" width="32" height="32"></canvas><div style="flex:1">
+    <div class="who">📡 ${d.who}</div>
+    <div class="txt">${d.text.replace(/</g,'&lt;')}</div>
+    ${d.bonus?`<p class="bonus">+ ${fmt$(d.bonus)} er overført til kontoen din.</p>`:''}
+    <button class="btn primary" data-a="next" style="margin-top:12px">Fortsett ▸</button>
+    <span class="hint">Enter / mellomrom</span></div></div>`);
+  drawPortrait(document.getElementById('portrait'),d.glitch||0,!!d.boss);
+}
+function nextDialog(){
+  const d=G.dialogs.shift();
+  if(G.dialogs.length) return showNextDialog();
+  if(d&&d.quake||G.quakeAfterDialog){ G.quakeAfterDialog=false; setState('play'); startQuake(); return; }
+  if(G.pendingVictory){ G.pendingVictory=false; return showVictory(); }
+  setState('play');
+}
+function drawPortrait(c,gl,boss){
+  const x=c.getContext('2d'); const r=Math.random;
+  x.fillStyle='#050302'; x.fillRect(0,0,32,32);
+  if(boss){ x.fillStyle='#3a0a10'; x.fillRect(4,4,24,24); x.fillStyle='#ff5010'; x.fillRect(8,8,16,16); x.fillStyle='#ffcf40'; x.fillRect(11,11,10,10); x.fillStyle='#000'; x.fillRect(15,9,2,14); }
+  else {
+    x.fillStyle='#2a1a14'; x.fillRect(6,22,20,10);           // skuldre
+    x.fillStyle='#1a1a22'; x.fillRect(9,23,14,9);            // dress
+    x.fillStyle='#d8a888'; x.fillRect(10,6,12,15);           // ansikt
+    x.fillStyle='#3a2a20'; x.fillRect(9,4,14,4);             // hår
+    x.fillStyle='#101010'; x.fillRect(11,11,4,2); x.fillRect(17,11,4,2); // briller
+    x.fillStyle='#8a5a48'; x.fillRect(13,17,6,1);
+    x.fillStyle='#c02020'; x.fillRect(15,23,2,6);            // slips
+    if(gl>0.3){ x.fillStyle='#ff2020'; x.fillRect(12,11,2,2); x.fillRect(18,11,2,2); }
+  }
+  for(let i=0;i<Math.floor(gl*14);i++){ const y=(r()*32)|0, h=1+((r()*2)|0); const s=x.getImageData(0,y,32,h); x.putImageData(s,((r()-0.5)*10)|0,y); }
+  x.fillStyle='rgba(255,255,255,.06)'; for(let y=0;y<32;y+=2) x.fillRect(0,y,32,1);
+}
+
+/* --- butikker --- */
+function openShop(z){ state='shop'; G.shop=z.id; G.lastSale=0; P.vx=0; saveGame(true); renderShop(); }
+function closeShop(){ setState('play'); }
+function renderShop(){
+  const id=G.shop; let h='';
+  const head=(t,s)=>`<div class="shop-h"><h2>${t}</h2><div class="cash">${fmt$(P.money)}</div></div>${s?`<p class="sub">${s}</p>`:''}`;
+  if(id==='fuel'){
+    const need=maxFuel()-P.fuel, cost=need*CONFIG.FUEL_PRICE;
+    h=head('Drivstoffstasjon',`Pris: ${fmt$(CONFIG.FUEL_PRICE)} per liter`)+
+      `<div class="bar"><i style="width:${P.fuel/maxFuel()*100}%;background:#5cc85a"></i></div><p>${P.fuel.toFixed(1)} / ${maxFuel()} L</p>
+      <div class="row"><button class="btn primary" data-a="buyFuel" data-v="fill" ${need<0.01||P.money<0.01?'disabled':''}>Fyll tanken (${fmt$(Math.ceil(cost))})</button>
+      ${[5,10,25,50].map(v=>`<button class="btn" data-a="buyFuel" data-v="${v}" ${need<0.01||P.money<0.01?'disabled':''}>${fmt$(v)}</button>`).join('')}</div>
+      ${P.money<cost&&need>0.01?'<p class="sub">Du har ikke råd til full tank – du får så mye pengene rekker.</p>':''}`;
+  } else if(id==='repair'){
+    const need=maxHull()-P.hull, cost=need*CONFIG.REPAIR_PRICE;
+    h=head('Reparasjonsverksted',`Pris: ${fmt$(CONFIG.REPAIR_PRICE)} per HP`)+
+      `<div class="bar"><i style="width:${P.hull/maxHull()*100}%;background:#4a90d8"></i></div><p>${Math.ceil(P.hull)} / ${maxHull()} HP</p>
+      <div class="row"><button class="btn primary" data-a="repair" data-v="fill" ${need<0.01||P.money<0.01?'disabled':''}>Full reparasjon (${fmt$(Math.ceil(cost))})</button>
+      ${[50,100,500].map(v=>`<button class="btn" data-a="repair" data-v="${v}" ${need<0.01||P.money<0.01?'disabled':''}>${fmt$(v)}</button>`).join('')}</div>`;
+  } else if(id==='sell'){
+    let rows='',tot=0;
+    P.cargo.forEach((n,i)=>{ if(!n) return; const m=CONFIG.MINERALS[i]; tot+=n*m.value;
+      rows+=`<tr><td><span style="color:${m.hi}">◆</span> ${m.name}</td><td class="num">${n}</td><td class="num">${fmt$(m.value)}</td><td class="num">${fmt$(n*m.value)}</td></tr>`; });
+    h=head('Mineralforedling',`Lasterom: ${cargoCount()} / ${cargoCap()}`)+
+      (rows?`<table><tr><th>Mineral</th><th class="num">Antall</th><th class="num">Pris</th><th class="num">Sum</th></tr>${rows}
+        <tr><td><b>Totalt</b></td><td></td><td></td><td class="num bonus">${fmt$(tot)}</td></tr></table>
+        <button class="btn primary" data-a="sellAll">Selg alt (Enter)</button>`
+      :`<p>${G.lastSale?`<span class="bonus">Solgt for ${fmt$(G.lastSale)}!</span>`:'Lasterommet er tomt.'}</p>`)+
+      `<h3>Prisliste</h3><table>${CONFIG.MINERALS.filter(m=>!(m.extra&&CONFIG.ORIGINAL_MODE)).map(m=>`<tr class="${m.extra?'extra':''}"><td><span style="color:${m.hi}">◆</span> ${m.name}</td><td class="num">${fmt$(m.value)}</td></tr>`).join('')}</table>`;
+  } else if(id==='upgrade'){
+    const tabs=[...Object.keys(CONFIG.UPGRADES),'items'];
+    h=head('Oppgraderinger','Kjøp hvilket som helst nivå direkte. ★ = ekstra nivå utover originalen.')+
+      `<div class="tabs">${tabs.map(t=>`<button class="tab ${G.shopTab===t?'on':''}" data-a="tab" data-v="${t}">${t==='items'?'Forbruksvarer':CONFIG.UPGRADES[t].label}</button>`).join('')}</div>`;
+    if(G.shopTab==='items'){
+      h+=`<table><tr><th>Vare</th><th>Tast</th><th class="num">Har</th><th class="num">Pris</th><th></th></tr>`+
+        Object.entries(CONFIG.ITEMS).map(([k,it])=>`<tr><td>${it.name}<div class="sub" style="font-size:12px;margin:2px 0 0">${it.desc}</div></td><td>${it.key}</td><td class="num">${P.items[k]}</td><td class="num">${fmt$(it.price)}</td>
+          <td class="num"><button class="btn" data-a="buyItem" data-v="${k}" ${P.money<it.price?'disabled':''}>Kjøp</button></td></tr>`).join('')+`</table>`;
+    } else {
+      const cat=G.shopTab, U=CONFIG.UPGRADES[cat];
+      const fv=v=>cat==='radiator'?`${Math.round(v*100)} % kjøling`:`${v} ${U.unit}`;
+      h+=`<table><tr><th>Modell</th><th class="num">Verdi</th><th class="num">Pris</th><th></th></tr>`+
+        activeLevels(cat).map(L=>{ const cur=P.lv[cat]===L.i, low=L.i<P.lv[cat];
+          return `<tr class="${cur?'cur':''} ${L.extra?'extra':''}"><td>${L.name}</td><td class="num">${fv(L.value)}</td><td class="num">${L.price?fmt$(L.price):'–'}</td>
+          <td class="num">${cur?'Montert':low?'<span class="sub">Lavere</span>':`<button class="btn" data-a="buyUp" data-v="${cat}:${L.i}" ${P.money<L.price?'disabled':''}>Kjøp</button>`}</td></tr>`; }).join('')+`</table>`;
+    }
+  }
+  h+=`<div style="margin-top:14px"><button class="btn" data-a="closeShop">◂ Tilbake ut (Esc)</button></div>`;
+  showOv(h);
+}
+
+/* ===================== Hovedløkke ===================== */
+function resize(){
+  const s=Math.min(innerWidth/VW,innerHeight/VH);
+  cv.style.width=Math.floor(VW*s)+'px'; cv.style.height=Math.floor(VH*s)+'px';
+}
+addEventListener('resize',resize);
+let last=performance.now(), acc=0; const STEP=1/60;
+function frame(now){
+  let dt=(now-last)/1000; last=now; if(dt>0.25) dt=0.25; acc+=dt;
+  let n=0; while(acc>=STEP&&n<6){ update(STEP); acc-=STEP; n++; } if(n>=6) acc=0;
+  if(state==='menu'&&W){ cam.x=200+Math.sin(now/4000)*150; cam.y=(W.skyRows-8)*TS+Math.sin(now/5000)*40; }
+  render();
+  requestAnimationFrame(frame);
+}
+initSprites(); resize(); showMenu(); requestAnimationFrame(frame);
+window.__DC={get P(){return P;},get W(){return W;},get G(){return G;},get B(){return B;},get state(){return state;},CONFIG,act,newGame,spawnBoss,useItem,keys,update,render};
+</script>
+
+</body></html>
