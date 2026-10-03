@@ -50,29 +50,29 @@ set search_path = public, extensions
 as $$
 declare
   h    text;
-  nick text := left(btrim(regexp_replace(coalesce(p_nick, ''), '[[:cntrl:]]', '', 'g')), 16);
+  v_nick text := left(btrim(regexp_replace(coalesce(p_nick, ''), '[[:cntrl:]]', '', 'g')), 16);
   best integer;
 begin
   if p_id is null or char_length(coalesce(p_secret, '')) < 32 then
     raise exception 'invalid player';
   end if;
-  if nick = '' then nick := 'Player'; end if;
+  if v_nick = '' then v_nick := 'Player'; end if;
 
   h := (select secret_hash from gravitube_players where id = p_id);
   if h is null then
-    insert into gravitube_players (id, secret_hash, nick) values (p_id, crypt(p_secret, gen_salt('bf')), nick);
+    insert into gravitube_players (id, secret_hash, nick) values (p_id, crypt(p_secret, gen_salt('bf')), v_nick);
   elsif h <> crypt(p_secret, h) then
     raise exception 'forbidden';
   else
-    update gravitube_players set nick = gravitube_submit.nick where id = p_id;
-    update gravitube_scores  set nick = gravitube_submit.nick where player_id = p_id;
+    update gravitube_players set nick = v_nick where id = p_id;
+    update gravitube_scores  set nick = v_nick where player_id = p_id;
   end if;
 
   if p_map is null then return 0; end if;
   if p_m is null or p_m < 0 or p_m > 1000000 then raise exception 'invalid score'; end if;
 
   insert into gravitube_scores (player_id, map, nick, m, t)
-  values (p_id, p_map, nick, p_m, p_t)
+  values (p_id, p_map, v_nick, p_m, p_t)
   on conflict (player_id, map) do update
     set m = excluded.m, t = excluded.t, nick = excluded.nick, at = now()
     where case when excluded.map = 'sprint' then excluded.m < gravitube_scores.m
