@@ -191,6 +191,23 @@ try{const r=localStorage.getItem(KEY); if(r) Object.assign(save,JSON.parse(r));}
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save));}catch(e){}};
 
 /* ---------------- global leaderboard + nicknames ---------------- */
+// Supabase backend for the website. Leave empty to fall back to the claude.ai artifact database.
+const SB_URL='';   // e.g. 'https://abcdefgh.supabase.co'
+const SB_KEY='';   // the project's public "anon" key
+const SB=SB_URL&&SB_KEY?{
+  h(extra){return Object.assign({apikey:SB_KEY,Authorization:'Bearer '+SB_KEY},extra||{});},
+  async get(q,extra,method){const r=await fetch(SB_URL+'/rest/v1/gravitube_scores?'+q,{method:method||'GET',headers:this.h(extra)});
+    if(!r.ok)throw{code:'http',status:r.status};return r;},
+  async top(m){return (await this.get('select=player_id,nick,m&map=eq.'+m+'&order=m.desc,at.asc&limit=50')).json();},
+  async mine(m,id){const a=await (await this.get('select=m&map=eq.'+m+'&player_id=eq.'+id)).json();return a[0]||null;},
+  async above(m,v){const r=await this.get('select=player_id&map=eq.'+m+'&m=gt.'+v,{Prefer:'count=exact',Range:'0-0'},'HEAD');
+    const n=+((r.headers.get('content-range')||'').split('/')[1]);return Number.isFinite(n)?n:null;},
+  async rpc(map,nick,m,t){const r=await fetch(SB_URL+'/rest/v1/rpc/gravitube_submit',{method:'POST',headers:this.h({'Content-Type':'application/json'}),
+      body:JSON.stringify({p_id:save.pid,p_secret:save.psec,p_map:map,p_nick:nick,p_m:m,p_t:t})});
+    if(!r.ok)throw{code:'http',status:r.status};return r.json();},
+}:null;
+if(SB&&!save.pid){const rnd=()=>crypto.randomUUID?crypto.randomUUID():'10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
+  save.pid=rnd();save.psec=rnd()+rnd();persist();}
 const LBMAPS=['flat','bumpy'];
 const MAPNAME={flat:'Flat',bumpy:'Bumpy'};
 const cleanNick=n=>String(n||'').replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e]/g,'').replace(/\s+/g,' ').trim().slice(0,16);
@@ -207,7 +224,20 @@ const LB={
     else this.msg='Could not reach the leaderboard. Your score is still saved on this device.';
     if(this.lastRun&&this.lastRun.status==='posting')this.lastRun.status='failed';
     this.renderAll();},
+  async sbLoad(m){
+    const [rows,me]=await Promise.all([SB.top(m),SB.mine(m,this.uid)]);
+    this.rows[m]=rows.map(v=>({id:v.player_id,nick:cleanNick(v.nick)||'Player',m:Math.max(0,Math.floor(+v.m||0))}));
+    this.mine[m]=me;this.loaded[m]=true;this.state='on';
+    await this.refreshRank(m);this.renderAll();
+  },
+  async sbInit(){
+    this.uid=save.pid;
+    const load=()=>Promise.all(LBMAPS.map(m=>this.sbLoad(m))).catch(e=>{if(this.state==='connecting')this.state='off';this.fail(e);});
+    await load();
+    setInterval(()=>{if(!document.hidden&&(this.modal==='board'||G.state!=='play'))load();},30000);
+  },
   async init(){
+    if(SB)return this.sbInit();
     let db=null,user=null;
     try{if(window.claude&&window.claude.use)[db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);}catch(e){}
     if(!db){this.state='off';this.renderAll();return;}
@@ -239,6 +269,7 @@ const LB={
     if(i>=0){this.rank[m]=i+1;return;}
     if(this.rank[m]&&this.rank[m].pendingFor===me.m)return;
     this.rank[m]={pendingFor:me.m};
+    if(SB){try{const n=await SB.above(m,Math.floor(+me.m||0));this.rank[m]=n==null?null:n+1;}catch(e){this.rank[m]=null;}this.renderAll();return;}
     try{const sn=await this.db.collection('lb_'+m).where('m','>',me.m).limit(1000).get();
       this.rank[m]=sn.size>=1000?'1000+':sn.size+1;}catch(e){this.rank[m]=null;}
     this.renderAll();
@@ -252,6 +283,10 @@ const LB={
       if(this.state!=='on'){run.status='off';this.renderOver();return;}
       if(!this.canWrite){run.status='view';this.renderOver();return;}
       if(dist<1){run.status='kept';this.renderOver();return;}
+      if(SB){const prev=this.mine[m]?Math.floor(+this.mine[m].m||0):0;
+        if(dist<=prev){run.status='kept';this.renderOver();return;}
+        await SB.rpc(m,save.nick,Math.floor(dist),Math.round((t||0)*10)/10);
+        this.rank[m]=null;run.status='posted';run.prev=prev;await this.sbLoad(m);return;}
       const ref=this.ref(m),cur=await ref.get();
       const prev=cur.exists?Math.floor(+cur.data().m||0):0;
       if(dist<=prev){run.status='kept';this.renderOver();return;}
@@ -262,6 +297,7 @@ const LB={
   setNick(n){
     n=cleanNick(n);if(!n)return false;
     save.nick=n;save.nickCustom=true;persist();this.renderAll();
+    if(SB){if(this.state==='on')this.enqueue(async()=>{await SB.rpc(null,n,0,0);await Promise.all(LBMAPS.map(m=>this.sbLoad(m)));});return true;}
     if(this.state==='on'&&this.canWrite&&this.uid){
       this.enqueue(()=>this.db.doc('data/users/'+this.uid+'/profile').set({nick:n}));
       for(const m of LBMAPS)this.enqueue(async()=>{const r=this.ref(m),c=await r.get();if(c.exists&&c.data().nick!==n)await r.update({nick:n});});
@@ -314,7 +350,7 @@ const LB={
     $('lbMine').textContent=me?`Your best ${Math.floor(+me.m).toLocaleString('en-US')} m`+(rk&&typeof rk!=='object'?` · rank #${rk}`:''):'';
     let msg=this.msg||'';
     if(this.state==='connecting')msg='Connecting to the leaderboard…';
-    else if(this.state==='off')msg='The leaderboard is unavailable here. Open the published game while signed in to see it.';
+    else if(this.state==='off')msg=SB?'Could not reach the leaderboard. Check your connection and try again later.':'The leaderboard is unavailable here. Open the published game while signed in to see it.';
     else if(!this.loaded[m])msg='Loading…';
     else if(!n)msg='No scores yet on this pipe. Be the first.';
     else if(!this.canWrite&&!msg)msg='You can view the board, but your access does not allow posting scores.';
