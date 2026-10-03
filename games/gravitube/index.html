@@ -193,9 +193,9 @@ const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save));}catch(e){
 /* ---------------- global leaderboard + nicknames ---------------- */
 // Supabase backend for the website. Leave empty to fall back to the claude.ai artifact database.
 const SB_URL='';   // e.g. 'https://abcdefgh.supabase.co'
-const SB_KEY='';   // the project's public "anon" key
+const SB_KEY='';   // the project's publishable key (sb_publishable_…) or legacy anon key (eyJ…)
 const SB=SB_URL&&SB_KEY?{
-  h(extra){return Object.assign({apikey:SB_KEY,Authorization:'Bearer '+SB_KEY},extra||{});},
+  h(extra){return Object.assign({apikey:SB_KEY},SB_KEY.startsWith('eyJ')?{Authorization:'Bearer '+SB_KEY}:{},extra||{});},
   async get(q,extra,method){const r=await fetch(SB_URL+'/rest/v1/gravitube_scores?'+q,{method:method||'GET',headers:this.h(extra)});
     if(!r.ok)throw{code:'http',status:r.status};return r;},
   async top(m){return (await this.get('select=player_id,nick,m&map=eq.'+m+'&order=m.desc,at.asc&limit=50')).json();},
