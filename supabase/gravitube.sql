@@ -76,5 +76,10 @@ begin
 end;
 $$;
 
+-- Nye Supabase-prosjekter gir ikke alltid anon tilgang automatisk.
+grant usage on schema public to anon, authenticated;
+grant select on public.gravitube_scores to anon, authenticated;
+revoke all on public.gravitube_players from anon, authenticated;
+
 revoke all on function public.gravitube_submit(uuid, text, text, text, integer, real) from public;
 grant execute on function public.gravitube_submit(uuid, text, text, text, integer, real) to anon, authenticated;
