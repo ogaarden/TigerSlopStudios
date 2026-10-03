@@ -73,6 +73,10 @@ h2.sec{font-family:var(--f-display);font-weight:800;font-size:34px;letter-spacin
 .mm .t{font-family:"DM Mono",monospace;font-weight:500;font-size:clamp(36px,6vw,50px);letter-spacing:.04em;color:#ff8a3d;text-shadow:0 3px 0 #3a1608}
 .fd .art{background:linear-gradient(180deg,#4f7d36,#8a7350)}
 .fd .t{font-family:"Lilita One",sans-serif;font-size:clamp(38px,7vw,50px);color:#f4ecd4;text-shadow:0 4px 0 #3a2410}
+.sp .art{background:linear-gradient(180deg,#1a0a3a,#5a1a7a 70%,#ff3da8)}
+.sp .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(36px,6.5vw,50px);line-height:.95;color:#4af2ff;text-shadow:0 4px 0 #ff3da8}
+.tk .art{background:linear-gradient(180deg,#8ac4ff,#f0d9b0 70%,#ff6a2a)}
+.tk .t{font-family:"Lilita One",sans-serif;font-size:clamp(40px,7vw,52px);line-height:.95;color:#fff;text-shadow:0 4px 0 #ff5a1f}
 footer{border-top:3px solid var(--ink);padding:22px 0 40px;font-family:var(--f-mono);font-size:13px;color:#6b5d50;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 @media (max-width:760px){.hero{grid-template-columns:1fr;text-align:center}.hero p{margin-inline:auto}.hero img{max-width:340px;margin:0 auto;order:-1}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
