@@ -151,7 +151,7 @@ button.mini{padding:6px 12px;font-size:14px;border-radius:9px}
 
 <div class="overlay" id="lbo"><div class="card">
   <h2>Global leaderboard</h2>
-  <div class="maprow" style="margin-top:8px"><div class="seg" role="group" aria-label="Leaderboard pipe"><button id="lbFlat">Flat</button><button id="lbBumpy">Bumpy</button></div><span class="sub" id="lbMine"></span></div>
+  <div class="maprow" style="margin-top:8px"><div class="seg" role="group" aria-label="Leaderboard pipe"><button id="lbFlat">Flat</button><button id="lbBumpy">Bumpy</button><button id="lbSprint">Sprint</button></div><span class="sub" id="lbMine"></span></div>
   <div class="lbwrap" id="lbFull"><ol class="lblist" id="lbList"></ol></div>
   <div class="lbmsg" id="lbMsg"></div>
   <div class="who" style="margin-top:10px"><span>Playing as <b id="nickL2"></b></span><button class="mini" id="bRename2">Rename</button></div>
@@ -196,20 +196,24 @@ const SB_URL='https://cumfhqjjpxwgyzhccpci.supabase.co';   // e.g. 'https://abcd
 const SB_KEY='sb_publishable_Ej7sYm3QdQBRiNZVniBqCQ_MkVgnAzh';   // the project's publishable key (sb_publishable_…) or legacy anon key (eyJ…)
 const SB=SB_URL&&SB_KEY?{
   h(extra){return Object.assign({apikey:SB_KEY},SB_KEY.startsWith('eyJ')?{Authorization:'Bearer '+SB_KEY}:{},extra||{});},
+  async err(r){let d='';try{const j=await r.json();d=j.message||j.hint||'';}catch(e){}return{code:'http',status:r.status,detail:(r.status+' '+d).trim()};},
   async get(q,extra,method){const r=await fetch(SB_URL+'/rest/v1/gravitube_scores?'+q,{method:method||'GET',headers:this.h(extra)});
-    if(!r.ok)throw{code:'http',status:r.status};return r;},
-  async top(m){return (await this.get('select=player_id,nick,m&map=eq.'+m+'&order=m.desc,at.asc&limit=50')).json();},
+    if(!r.ok)throw await this.err(r);return r;},
+  async top(m){return (await this.get('select=player_id,nick,m&map=eq.'+m+'&order=m.'+(m==='sprint'?'asc':'desc')+',at.asc&limit=50')).json();},
   async mine(m,id){const a=await (await this.get('select=m&map=eq.'+m+'&player_id=eq.'+id)).json();return a[0]||null;},
-  async above(m,v){const r=await this.get('select=player_id&map=eq.'+m+'&m=gt.'+v,{Prefer:'count=exact',Range:'0-0'},'HEAD');
+  async above(m,v){const r=await this.get('select=player_id&map=eq.'+m+'&m='+(m==='sprint'?'lt.':'gt.')+v,{Prefer:'count=exact',Range:'0-0'},'HEAD');
     const n=+((r.headers.get('content-range')||'').split('/')[1]);return Number.isFinite(n)?n:null;},
   async rpc(map,nick,m,t){const r=await fetch(SB_URL+'/rest/v1/rpc/gravitube_submit',{method:'POST',headers:this.h({'Content-Type':'application/json'}),
       body:JSON.stringify({p_id:save.pid,p_secret:save.psec,p_map:map,p_nick:nick,p_m:m,p_t:t})});
-    if(!r.ok)throw{code:'http',status:r.status};return r.json();},
+    if(!r.ok)throw await this.err(r);return r.json();},
 }:null;
 if(SB&&!save.pid){const rnd=()=>crypto.randomUUID?crypto.randomUUID():'10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
   save.pid=rnd();save.psec=rnd()+rnd();persist();}
-const LBMAPS=['flat','bumpy'];
-const MAPNAME={flat:'Flat',bumpy:'Bumpy'};
+const LBMAPS=SB?['flat','bumpy','sprint']:['flat','bumpy'];
+const MAPNAME={flat:'Flat',bumpy:'Bumpy',sprint:'Sprint'};
+// Sprint ranks finish time in hundredths of a second (lower is better); the others rank distance.
+const LOW=m=>m==='sprint';
+const fmtScore=(m,v)=>LOW(m)?fmtTime(v/100):Math.floor(v).toLocaleString('en-US')+' m';
 const cleanNick=n=>String(n||'').replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e]/g,'').replace(/\s+/g,' ').trim().slice(0,16);
 if(!cleanNick(save.nick)){save.nick='Guest'+(1000+Math.floor(Math.random()*9000));save.nickCustom=false;persist();}
 const LB={
@@ -221,13 +225,13 @@ const LB={
     if(c==='invalid_argument'){this.canWrite=false;this.msg='Your access to this game is view-only, so scores are not posted.';}
     else if(c==='quota_exceeded'){this.msg='The leaderboard is full right now, so your score was not posted.';}
     else if(c==='revoked'){this.state='off';this.msg='';}
-    else this.msg='Could not reach the leaderboard. Your score is still saved on this device.';
-    if(this.lastRun&&this.lastRun.status==='posting')this.lastRun.status='failed';
+    else this.msg='Could not reach the leaderboard. Your score is still saved on this device.'+(SB?' ('+(e&&(e.detail||e.message)||'network error')+')':'');
+    if(this.lastRun&&this.lastRun.status==='posting'){this.lastRun.status='failed';this.lastRun.err=this.msg;}
     this.renderAll();},
   async sbLoad(m){
     const [rows,me]=await Promise.all([SB.top(m),SB.mine(m,this.uid)]);
     this.rows[m]=rows.map(v=>({id:v.player_id,nick:cleanNick(v.nick)||'Player',m:Math.max(0,Math.floor(+v.m||0))}));
-    this.mine[m]=me;this.loaded[m]=true;this.state='on';
+    this.mine[m]=me;this.loaded[m]=true;this.state='on';if(SB)this.msg='';
     await this.refreshRank(m);this.renderAll();
   },
   async sbInit(){
@@ -284,7 +288,7 @@ const LB={
       if(!this.canWrite){run.status='view';this.renderOver();return;}
       if(dist<1){run.status='kept';this.renderOver();return;}
       if(SB){const prev=this.mine[m]?Math.floor(+this.mine[m].m||0):0;
-        if(dist<=prev){run.status='kept';this.renderOver();return;}
+        if(prev&&(LOW(m)?dist>=prev:dist<=prev)){run.status='kept';this.renderOver();return;}
         await SB.rpc(m,save.nick,Math.floor(dist),Math.round((t||0)*10)/10);
         this.rank[m]=null;run.status='posted';run.prev=prev;await this.sbLoad(m);return;}
       const ref=this.ref(m),cur=await ref.get();
@@ -310,7 +314,7 @@ const LB={
     const add=(rk,nick,meters,me)=>{const li=document.createElement('li');if(me)li.className='me';
       const a=document.createElement('span');a.className='rk';a.textContent='#'+rk;
       const b=document.createElement('span');b.className='nm';b.textContent=nick;
-      const c=document.createElement('span');c.className='mt';c.textContent=meters.toLocaleString('en-US')+' m';
+      const c=document.createElement('span');c.className='mt';c.textContent=fmtScore(m,meters);
       li.append(a,b,c);el.appendChild(li);};
     rows.forEach((r,i)=>add(i+1,r.id===this.uid?save.nick:r.nick,r.m,r.id===this.uid));
     const me=this.mine[m],rk=this.rank[m];
@@ -326,7 +330,7 @@ const LB={
     const r=this.lastRun;
     if(!r){wrap.style.display=this.state==='off'?'none':'';
       $('oLBTitle').textContent='Global leaderboard';$('oLBRank').textContent='';$('oLB').textContent='';
-      $('oLBMsg').textContent='Leaderboards rank distance on the Flat and Bumpy pipes.';return;}
+      $('oLBMsg').textContent=SB?'Leaderboards rank distance on Flat and Bumpy, and finish time on Sprint.':'Leaderboards rank distance on the Flat and Bumpy pipes.';return;}
     if(this.state==='off'){wrap.style.display='none';return;}
     wrap.style.display='';
     $('oLBTitle').textContent='Global top 5 · '+MAPNAME[r.m];
@@ -334,9 +338,10 @@ const LB={
     const n=this.fillList($('oLB'),r.m,5);
     let msg='';
     if(this.msg)msg=this.msg;
+    else if(r.status==='failed'&&r.err)msg=r.err;
     else if(r.status==='posting')msg='Posting your score…';
-    else if(r.status==='posted')msg=r.prev?`New personal best, up from ${r.prev.toLocaleString('en-US')} m.`:'Your score is on the board.';
-    else if(r.status==='kept'){const b=this.mine[r.m];msg=b?`Your best of ${Math.floor(+b.m).toLocaleString('en-US')} m stays on the board.`:'';}
+    else if(r.status==='posted')msg=r.prev?`New personal best, up from ${fmtScore(r.m,r.prev)}.`:'Your score is on the board.';
+    else if(r.status==='kept'){const b=this.mine[r.m];msg=b?`Your best of ${fmtScore(r.m,+b.m)} stays on the board.`:'';}
     else if(r.status==='view')msg='Your access to this game is view-only, so scores are not posted.';
     if(!n&&this.loaded[r.m]&&!msg)msg='No scores yet. Be the first.';
     if(this.state==='connecting')msg='Connecting to the leaderboard…';
@@ -344,10 +349,10 @@ const LB={
   },
   renderBoard(){
     const m=this.tab;
-    for(const [id,k] of [['lbFlat','flat'],['lbBumpy','bumpy']]){$(id).classList.toggle('on',m===k);$(id).setAttribute('aria-pressed',m===k);}
+    for(const [id,k] of [['lbFlat','flat'],['lbBumpy','bumpy'],['lbSprint','sprint']]){$(id).classList.toggle('on',m===k);$(id).setAttribute('aria-pressed',m===k);}
     const n=this.fillList($('lbList'),m,50);
     const me=this.mine[m],rk=this.rank[m];
-    $('lbMine').textContent=me?`Your best ${Math.floor(+me.m).toLocaleString('en-US')} m`+(rk&&typeof rk!=='object'?` · rank #${rk}`:''):'';
+    $('lbMine').textContent=me?`Your best ${fmtScore(m,+me.m)}`+(rk&&typeof rk!=='object'?` · rank #${rk}`:''):'';
     let msg=this.msg||'';
     if(this.state==='connecting')msg='Connecting to the leaderboard…';
     else if(this.state==='off')msg=SB?'Could not reach the leaderboard. Check your connection and try again later.':'The leaderboard is unavailable here. Open the published game while signed in to see it.';
@@ -736,7 +741,7 @@ function showFinish(){
   $('oTotal').textContent=Math.floor(save.total)+' m';
   $('unlocks').textContent=rec&&old?'New record':'Sprint runs add to your total distance but not to your best run.';
   if(rec&&old)setTimeout(sfx.unlock,200);
-  LB.lastRun=null;LB.renderOver();
+  LB.submit('sprint',Math.round(t*100),t);
   show('over',true);$('hud').classList.remove('on');$('gauge').classList.remove('on');
 }
 function tryJump(){G.jumpBuf=.14;}
@@ -773,7 +778,7 @@ function gameOver(){
   const nxt=SKINS.find(s=>s.req>save.best);
   $('unlocks').textContent=newly.length?('Unlocked: '+newly.map(s=>s.name).join(', ')):(nxt?`Next skin, ${nxt.name}, at ${nxt.req} m`:'Every skin unlocked');
   if(newly.length)setTimeout(sfx.unlock,250);
-  LB.submit(MAP,dist,G.runTime);
+  if(MAP==='sprint'){LB.lastRun=null;LB.renderOver();}else LB.submit(MAP,dist,G.runTime);
   show('over',true);$('hud').classList.remove('on');
 }
 
@@ -998,6 +1003,7 @@ if('ontouchstart' in window||navigator.maxTouchPoints>0){
 
 $('bLB1').onclick=()=>LB.openBoard();$('bLB2').onclick=()=>LB.openBoard();$('bLBBack').onclick=()=>LB.closeBoard();
 $('lbFlat').onclick=()=>{sfx.click();LB.tab='flat';LB.renderBoard();};$('lbBumpy').onclick=()=>{sfx.click();LB.tab='bumpy';LB.renderBoard();};
+$('lbSprint').onclick=()=>{sfx.click();LB.tab='sprint';LB.renderBoard();};if(!LBMAPS.includes('sprint'))$('lbSprint').style.display='none';
 $('bRename1').onclick=()=>LB.openName();$('bRename2').onclick=()=>LB.openName();
 $('bNickSave').onclick=()=>LB.saveName();$('bNickCancel').onclick=()=>{sfx.click();LB.closeName();};
 $('nickIn').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();LB.saveName();}else if(e.key==='Escape'){e.preventDefault();LB.closeName();}});
