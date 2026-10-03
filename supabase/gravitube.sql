@@ -27,8 +27,11 @@ create index if not exists gravitube_scores_rank on public.gravitube_scores (map
 alter table public.gravitube_players enable row level security;
 alter table public.gravitube_scores  enable row level security;
 
-drop policy if exists "Alle kan lese topplisten" on public.gravitube_scores;
-create policy "Alle kan lese topplisten" on public.gravitube_scores for select using (true);
+do $do$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'gravitube_scores' and policyname = 'Alle kan lese topplisten') then
+    create policy "Alle kan lese topplisten" on public.gravitube_scores for select using (true);
+  end if;
+end $do$;
 -- Ingen andre policyer: all skriving går gjennom funksjonen under.
 
 -- Legger inn en poengsum (bare hvis den er bedre enn før) og/eller oppdaterer kallenavnet.
@@ -49,7 +52,7 @@ begin
   end if;
   if nick = '' then nick := 'Player'; end if;
 
-  select secret_hash into h from gravitube_players where id = p_id;
+  h := (select secret_hash from gravitube_players where id = p_id);
   if h is null then
     insert into gravitube_players (id, secret_hash, nick) values (p_id, crypt(p_secret, gen_salt('bf')), nick);
   elsif h <> crypt(p_secret, h) then
@@ -68,7 +71,7 @@ begin
     set m = excluded.m, t = excluded.t, nick = excluded.nick, at = now()
     where gravitube_scores.m < excluded.m;
 
-  select s.m into best from gravitube_scores s where s.player_id = p_id and s.map = p_map;
+  best := (select s.m from gravitube_scores s where s.player_id = p_id and s.map = p_map);
   return coalesce(best, 0);
 end;
 $$;
