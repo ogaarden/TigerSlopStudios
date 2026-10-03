@@ -1,0 +1,1022 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Twenty-Four Doors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#080808;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    height:100%;
+  }
+  html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--void)}
+  body{margin:0;height:100%;background:var(--void);overflow:hidden}
+  canvas{display:block;width:100%;height:100%;outline:none}
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="0" aria-label="Twenty-Four Doors game. Use the keyboard and mouse to play."></canvas>
+<script>
+(() => {
+"use strict";
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const W = 1600, H = 900, FLOOR = 820;
+
+const SERIF = "'Cormorant Garamond', 'Iowan Old Style', Georgia, serif";
+const HINTFONT = `italic 500 44px ${SERIF}`;
+const SUBFONT  = `500 24px ${SERIF}`;
+const PLATFONT = `600 50px ${SERIF}`;
+const HUDFONT  = `500 22px ${SERIF}`;
+
+const C = {
+  room:'#151515', solid:'#d9d9d6', text:'#8c8c88', dim:'#4d4d4a',
+  player:'#f4f4f1', eye:'#151515', red:'#a3302c'
+};
+
+// ---------- canvas sizing ----------
+let scale=1, offX=0, offY=0, dpr=1;
+function resize(){
+  dpr = Math.min(2, window.devicePixelRatio||1);
+  const cw = cv.clientWidth, ch = cv.clientHeight;
+  cv.width = Math.round(cw*dpr); cv.height = Math.round(ch*dpr);
+  scale = Math.min(cw/W, ch/H);
+  offX = (cw - W*scale)/2; offY = (ch - H*scale)/2;
+}
+resize();
+addEventListener('resize', () => {
+  resize();
+  if (state==='play' && room && room.onResize && room.age>0.6) room.onResize();
+});
+
+// ---------- input ----------
+const keys = {}; let pressed = {};
+let activity = false, capsOn = false;
+const mouse = {x:-999,y:-999,in:false};
+const GAMEKEYS = ['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'];
+function readCaps(e){
+  if (e && e.getModifierState){
+    const c = e.getModifierState('CapsLock');
+    if (c!==capsOn){ capsOn=c; if (state==='play' && room && room.onCaps) room.onCaps(c); }
+  }
+}
+addEventListener('keydown', e => {
+  audioInit(); readCaps(e); activity = true;
+  if (GAMEKEYS.includes(e.code) || e.key==='Backspace') e.preventDefault();
+  if (!keys[e.code]) pressed[e.code] = true;
+  keys[e.code] = true;
+  handleKey(e);
+});
+addEventListener('keyup', e => { keys[e.code] = false; readCaps(e); });
+cv.addEventListener('mousemove', e => {
+  const r = cv.getBoundingClientRect();
+  mouse.x = (e.clientX - r.left - offX)/scale;
+  mouse.y = (e.clientY - r.top - offY)/scale;
+  mouse.in = mouse.x>=0 && mouse.x<=W && mouse.y>=0 && mouse.y<=H;
+  activity = true; readCaps(e);
+});
+cv.addEventListener('mouseleave', () => { mouse.in=false; });
+cv.addEventListener('mousedown', e => {
+  audioInit(); cv.focus(); readCaps(e); activity = true;
+  if (state==='play' && room && room.onMouseDown) room.onMouseDown(e);
+});
+addEventListener('mouseup', () => { if (state==='play' && room && room.onMouseUp) room.onMouseUp(); });
+function lookAway(){
+  for (const k in keys) keys[k]=false;
+  if (state==='play' && room && room.onHidden) room.onHidden();
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) lookAway(); });
+addEventListener('blur', lookAway);
+const anyHeld = () => Object.values(keys).some(Boolean);
+
+// ---------- audio ----------
+let AC=null, master=null, drone=null, muted=false;
+function audioInit(){
+  if (!AC){
+    try{
+      AC = new (window.AudioContext||window.webkitAudioContext)();
+      master = AC.createGain(); master.gain.value = muted?0:0.4; master.connect(AC.destination);
+      const g = AC.createGain(); g.gain.value = 0;
+      const lp = AC.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=300;
+      const o1 = AC.createOscillator(), o2 = AC.createOscillator();
+      o1.type='sawtooth'; o2.type='sine'; o1.frequency.value=55; o2.frequency.value=55.3;
+      o1.connect(lp); o2.connect(lp); lp.connect(g); g.connect(master);
+      o1.start(); o2.start();
+      drone = {g,o1,o2};
+      if (state==='play') setDrone();
+    }catch(e){ AC=null; }
+  }
+  if (AC && AC.state==='suspended') AC.resume();
+}
+function tone(freq,dur,type='square',vol=0.2,slide=1,when=0){
+  if (!AC) return;
+  const t = AC.currentTime + when;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq,t);
+  if (slide!==1) o.frequency.exponentialRampToValueAtTime(Math.max(20,freq*slide), t+dur);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+0.05);
+}
+const DRONE_STEPS=[1,1.122,1.189,1.335,1.498,1.587,1.782,2];
+function setDrone(){
+  if (!drone) return;
+  const on = state==='play' && room && !room.quiet;
+  drone.g.gain.setTargetAtTime(on?0.05:0, AC.currentTime, 0.5);
+  const f = 55*DRONE_STEPS[roomIdx%DRONE_STEPS.length];
+  drone.o1.frequency.setTargetAtTime(f, AC.currentTime, 1);
+  drone.o2.frequency.setTargetAtTime(f*1.006, AC.currentTime, 1);
+}
+const sfx = {
+  jump:()=>tone(300,0.12,'square',0.045,1.9),
+  die:()=>{tone(220,0.45,'sawtooth',0.12,0.2);tone(90,0.5,'square',0.06,0.5,0.05);},
+  door:()=>{tone(392,0.14,'triangle',0.16);tone(587,0.3,'triangle',0.16,1,0.11);},
+  appear:()=>[523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(f,0.5,'sine',0.13,1,i*0.09)),
+  knock:()=>{tone(150,0.06,'square',0.16,0.4);tone(130,0.06,'square',0.16,0.4,0.13);},
+  type:()=>tone(900+Math.random()*300,0.03,'square',0.03),
+  rumble:()=>tone(48,0.9,'sawtooth',0.14,0.85),
+  unlock:()=>{tone(180,0.5,'square',0.06,2.4);tone(720,0.25,'sine',0.12,1,0.45);},
+  flip:()=>tone(520,0.22,'sine',0.14,0.35),
+  stomp:()=>tone(220,0.14,'square',0.12,3),
+  wrong:()=>tone(98,0.5,'sawtooth',0.12,0.9),
+  crack:()=>tone(1400,0.05,'square',0.05,0.3),
+  shatter:()=>{for(let i=0;i<5;i++)tone(600+Math.random()*900,0.12,'square',0.06,0.3,i*0.03);},
+  bonk:()=>tone(660,0.09,'square',0.08,1.5),
+  copy:()=>tone(880,0.06,'sine',0.12),
+  paste:()=>{tone(440,0.08,'square',0.08);tone(660,0.08,'square',0.06,1,0.05);},
+  grow:(up)=>tone(up?160:320,0.3,'sawtooth',0.08,up?0.5:2),
+  tick:()=>tone(1200,0.03,'sine',0.08),
+  fling:()=>tone(200,0.35,'sawtooth',0.08,4),
+  whoosh:()=>tone(120,0.4,'sine',0.1,3),
+};
+
+// ---------- helpers ----------
+const R = (x,y,w,h,o={}) => Object.assign({x,y,w,h},o);
+const floor = () => R(0,FLOOR,W,H-FLOOR);
+const doorAt = (x,y=FLOOR-96,o={}) => Object.assign({x,y,w:64,h:96},o);
+const overlap = (a,b) => a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+const inset = (r,n) => ({x:r.x+n,y:r.y+n,w:r.w-2*n,h:r.h-2*n});
+const pcx = () => P.x+P.w/2, pcy = () => P.y+P.h/2;
+
+// ---------- state ----------
+let state='title', roomIdx=0, room=null, P=null;
+let deaths=0, playTime=0, time=0, keyQuest=0;
+let fade=0, fadeDir=0, pendingRoom=-1, deadT=0;
+let particles=[];
+let saved=null;
+try{ saved = JSON.parse(localStorage.getItem('twenty-four-doors')||'null'); }catch(e){ saved=null; }
+function save(){
+  try{ localStorage.setItem('twenty-four-doors', JSON.stringify({room:roomIdx,deaths,time:playTime,keyQuest})); }catch(e){}
+}
+function clearSave(){ try{ localStorage.removeItem('twenty-four-doors'); }catch(e){} saved=null; }
+
+function drawKey(x,y){
+  ctx.save(); ctx.strokeStyle=C.solid; ctx.fillStyle=C.solid; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.arc(x-10,y,8,0,7); ctx.stroke();
+  ctx.fillRect(x-2,y-2,22,4); ctx.fillRect(x+12,y,4,8); ctx.fillRect(x+18,y,3,6);
+  ctx.restore();
+}
+
+// ---------- rooms ----------
+const ROOMS = [
+
+// 1 — walk
+() => ({
+  hint:['Walk to the door.'], sub:'← →   or   A  D', hintPos:{x:W/2,y:330},
+  spawn:{x:140,y:FLOOR-44}, solids:[floor()], door:doorAt(1420)
+}),
+
+// 2 — jump
+() => ({
+  hint:['Some things must be jumped over.'], sub:'Space,  W  or  ↑', hintPos:{x:W/2,y:330},
+  spawn:{x:140,y:FLOOR-44},
+  solids:[floor(), R(600,FLOOR-100,130,100), R(900,FLOOR-200,130,200)],
+  door:doorAt(1420)
+}),
+
+// 3 — the cursor is a platform
+() => ({
+  hint:['Your other hand wants to help.'], hintPos:{x:600,y:270},
+  spawn:{x:140,y:FLOOR-44}, cursor:'none',
+  solids:[floor(), R(1180,380,420,40)], door:doorAt(1450,380-96),
+  dynamicSolids(){ return mouse.in ? [R(mouse.x-65,mouse.y-6,130,12,{oneway:true})] : []; },
+  drawOver(c){
+    if (!mouse.in) return;
+    c.fillStyle=C.player; c.fillRect(mouse.x-65,mouse.y-6,130,12);
+    c.fillStyle=C.room; c.fillRect(mouse.x-2,mouse.y-3,4,6);
+  }
+}),
+
+// 4 — the hint is the platform
+() => {
+  const lines=[{t:'Some words carry meaning.',x:230,y:690},{t:'These ones carry you.',x:650,y:552}];
+  const ledge=R(1180,414,420,40);
+  const r = {
+    noHint:true, spawn:{x:100,y:FLOOR-44},
+    solids:[floor(), ledge], door:doorAt(1450,414-96),
+    init(){
+      ctx.save(); ctx.font=PLATFONT;
+      lines.forEach(l=>{ l.w=ctx.measureText(l.t).width; r.solids.push(R(l.x,l.y,l.w,14,{oneway:true,text:true})); });
+      ctx.restore();
+      const bEnd = lines[1].x+lines[1].w;
+      ledge.x = Math.min(1180, bEnd+120); ledge.w = W-ledge.x;
+    },
+    draw(c){
+      c.font=PLATFONT; c.textAlign='left'; c.textBaseline='alphabetic'; c.fillStyle='#b9b9b5';
+      lines.forEach(l=>c.fillText(l.t,l.x,l.y+31));
+    }
+  };
+  return r;
+},
+
+// 5 — falling brings the door closer
+() => {
+  const xs=[1420,1210,1010,820,650]; let falls=0;
+  const pil=R(1420,FLOOR,150,H-FLOOR), d=doorAt(1463);
+  return {
+    hint:['Every fall brings you closer.'], hintPos:{x:W/2,y:300},
+    spawn:{x:120,y:FLOOR-44}, solids:[R(0,FLOOR,480,H-FLOOR), pil], door:d,
+    onDeath(kind){ if(kind==='fall' && falls<xs.length-1){ falls++; sfx.rumble(); } },
+    update(dt){ pil.x += (xs[falls]-pil.x)*Math.min(1,dt*2.5); d.x = pil.x+43; }
+  };
+},
+
+// 6 — say what you want
+() => {
+  let buf='', shown=false, reply='', replyT=0;
+  const d=doorAt(1420,FLOOR-96,{visible:false,alpha:0});
+  const near={exit:1,out:1,escape:1,freedom:1,leave:1,away:1,key:1,home:1,next:1,way:1,progress:1,open:1};
+  function check(enter){
+    if (/door/.test(buf)){ shown=true; d.visible=true; sfx.appear(); reply=''; buf='door'; return; }
+    const words = buf.trim().split(/\s+/); const w = words[words.length-1];
+    if (near[w] && (enter || buf.endsWith(w))){ reply='Closer. Name the thing itself.'; replyT=3; }
+    else if (enter && buf.trim()){ reply='That is not in this room.'; replyT=3; buf=''; }
+  }
+  return {
+    hint:['What do you want the most?'], hintPos:{x:W/2,y:300},
+    spawn:{x:140,y:FLOOR-44}, solids:[floor()], door:d,
+    onKey(e){
+      if (shown || e.ctrlKey || e.metaKey) return;
+      if (e.key==='Backspace'){ buf=buf.slice(0,-1); return; }
+      if (e.key==='Enter'){ check(true); if(!shown) buf=''; return; }
+      if (e.key.length===1 && /[a-z ]/i.test(e.key)){ buf=(buf+e.key.toLowerCase()).slice(-28); sfx.type(); check(false); }
+    },
+    update(dt){ if(shown) d.alpha=Math.min(1,d.alpha+dt*1.2); replyT-=dt; },
+    draw(c){
+      c.textAlign='center'; c.textBaseline='alphabetic';
+      c.font=`italic 500 34px ${SERIF}`; c.fillStyle='#3a3a38';
+      c.fillText(buf + (Math.floor(time*2)%2 ? '|' : ' '), W/2, 872);
+      if (replyT>0){ c.globalAlpha=Math.min(1,replyT); c.font=SUBFONT; c.fillStyle=C.dim; c.fillText(reply,W/2,370); c.globalAlpha=1; }
+    }
+  };
+},
+
+// 7 — hold both right keys for double speed
+() => ({
+  hint:['Two hands are faster than one.'], hintPos:{x:W/2,y:300}, twoHands:true,
+  spawn:{x:80,y:FLOOR-44},
+  solids:[R(0,FLOOR,560,H-FLOOR), R(1040,FLOOR,W-1040,H-FLOOR)],
+  door:doorAt(1420)
+}),
+
+// 8 — die (the hard way) to become a ghost
+() => {
+  const tile=R(550,FLOOR,220,H-FLOOR,{cracked:true});
+  const r = {
+    hint:['Only the dead walk through walls.'], hintPos:{x:W/2,y:200},
+    spawn:{x:70,y:FLOOR-44},
+    solids:[R(0,FLOOR,550,H-FLOOR), tile, R(770,FLOOR,W-770,H-FLOOR),
+            R(160,700,120,18), R(300,580,110,18), R(430,460,110,18),
+            R(1110,0,50,FLOOR,{ghostly:true})],
+    door:doorAt(1400),
+    update(){
+      if (!tile.off && deadT<=0 && P.on===tile && P.impact>1150){
+        tile.off=true; sfx.shatter();
+        for (let i=0;i<14;i++) particles.push({x:tile.x+Math.random()*tile.w,y:FLOOR,vx:(Math.random()-0.5)*200,vy:-Math.random()*300,t:1,sz:6+Math.random()*10});
+      }
+    },
+    onDeath(){ r.ghost=true; tile.off=false; },
+    draw(c){
+      if (tile.off) return;
+      c.strokeStyle='#6a6a67'; c.lineWidth=2; c.beginPath();
+      c.moveTo(tile.x+30,FLOOR); c.lineTo(tile.x+70,FLOOR+22); c.lineTo(tile.x+60,FLOOR+50);
+      c.moveTo(tile.x+70,FLOOR+22); c.lineTo(tile.x+120,FLOOR+30); c.lineTo(tile.x+170,FLOOR+12); c.lineTo(tile.x+200,FLOOR+40);
+      c.moveTo(tile.x+120,FLOOR+30); c.lineTo(tile.x+130,FLOOR+70);
+      c.stroke();
+    }
+  };
+  return r;
+},
+
+// 9 — your shadow presses the plate
+() => {
+  const plate=R(185,548,90,12); let down=false, bars=1;
+  const d=doorAt(780,FLOOR-96,{open:false});
+  return {
+    hint:['Your shadow goes where you cannot.'], hintPos:{x:W/2,y:170},
+    spawn:{x:900,y:FLOOR-44},
+    solids:[floor(), R(60,300,20,520), R(380,300,20,520), R(60,300,340,20), R(80,560,300,20),
+            R(1060,690,140,18), R(1290,560,170,18)],
+    door:d,
+    update(dt){
+      if (deadT<=0 && !down){
+        const sx=W-P.x-P.w;
+        if (sx+P.w>plate.x && sx<plate.x+plate.w && Math.abs(P.y+P.h-560)<4){ down=true; sfx.unlock(); }
+      }
+      if (down){ bars=Math.max(0,bars-dt*0.9); if(bars===0) d.open=true; }
+    },
+    draw(c){
+      c.fillStyle = down ? '#6b6b68' : C.solid;
+      c.fillRect(plate.x, down?556:plate.y, plate.w, down?4:12);
+      drawBars(d,bars);
+      if (deadT<=0) drawBody(W-P.x-P.w, P.y, 30, 44, -P.face, 1, 1, '#3a3a38', '#9a9a96');
+    }
+  };
+},
+
+// 10 — listen for the invisible door
+() => {
+  const d=doorAt(1030,FLOOR-96,{visible:false,alpha:0});
+  let t=0.5, found=false, knockT=0, knockX=0, ring=0;
+  return {
+    quiet:true,
+    hint:['Listen.','Knock when you are there.'], sub:'(sound on)   ↓  or  S  to knock', hintPos:{x:W/2,y:280},
+    spawn:{x:120,y:FLOOR-44}, solids:[floor()], door:d,
+    update(dt){
+      knockT-=dt; ring=Math.max(0,ring-dt*2.5);
+      if (found){ d.alpha=Math.min(1,d.alpha+dt*1.5); return; }
+      if (deadT>0) return;
+      const dist=Math.abs(pcx()-(d.x+32)); const k=Math.min(1,dist/1400);
+      t-=dt;
+      if (t<=0){ tone(260+(1-k)*1000,0.07,'sine',0.2); t=0.09+k*1.1; ring=1; }
+      if (pressed.ArrowDown||pressed.KeyS){
+        if (dist<44){ found=true; d.visible=true; sfx.appear(); }
+        else { sfx.knock(); knockT=1.2; knockX=pcx(); }
+      }
+    },
+    draw(c){
+      if (!found && deadT<=0 && ring>0){
+        c.strokeStyle=`rgba(200,200,195,${ring*0.25})`; c.lineWidth=2;
+        c.beginPath(); c.arc(pcx(),pcy(),30+(1-ring)*40,0,7); c.stroke();
+      }
+      if (knockT>0){
+        c.globalAlpha=Math.min(1,knockT); c.fillStyle=C.dim; c.font=SUBFONT; c.textAlign='center';
+        c.fillText('nothing here', knockX, FLOOR-80); c.globalAlpha=1;
+      }
+    }
+  };
+},
+
+// 11 — only red is real
+() => {
+  const red=(x,y,w)=>R(x,y,w,18,{color:C.red});
+  const decoy=(x,y,w)=>R(x,y,w,18,{off:true,flash:0});
+  const fake=doorAt(1480,664);
+  const decoys=[decoy(430,760,200),decoy(760,760,200),decoy(1090,760,200)];
+  return {
+    hint:['Only red tells the truth.'], hintPos:{x:620,y:220},
+    spawn:{x:100,y:FLOOR-44},
+    solids:[R(0,FLOOR,360,H-FLOOR), red(440,700,120), red(680,580,120), red(920,460,120),
+            R(1180,360,420,30,{color:C.red}), ...decoys, R(1420,760,180,H-760)],
+    door:doorAt(1460,360-96,{frame:C.red}),
+    update(dt){
+      decoys.forEach(s=>{
+        if (deadT<=0 && overlap(P,s)){ if(s.flash<=0) sfx.crack(); s.flash=0.4; }
+        s.flash-=dt;
+      });
+      if (deadT<=0 && overlap(inset(P,4),fake)) die('lie');
+    },
+    draw(c){ drawDoor(fake); }
+  };
+},
+
+// 12 — bumping your head refreshes your jump
+() => ({
+  hint:['Hit your head. It helps you think.'], hintPos:{x:W/2,y:130}, bonk:true,
+  spawn:{x:100,y:FLOOR-44},
+  solids:[floor(), R(300,580,120,40,{bonker:true}), R(540,440,120,40,{bonker:true}),
+          R(780,300,120,40,{bonker:true}), R(1020,260,580,30,{bonker:true})],
+  door:doorAt(1470,260-96),
+  draw(c){
+    if (P.bonkT>0 && deadT<=0){
+      c.globalAlpha=P.bonkT/0.35; c.fillStyle=C.player;
+      for (let i=0;i<3;i++){ const a=time*8+i*2.1; c.fillRect(pcx()+Math.cos(a)*22-3,P.y-6+Math.sin(a)*6-3,6,6); }
+      c.globalAlpha=1;
+    }
+  }
+}),
+
+// 13 — wrap around the screen edge
+() => ({
+  hint:['The way forward is behind you.'], hintPos:{x:560,y:300},
+  spawn:{x:240,y:FLOOR-44}, wrap:true,
+  solids:[floor(), R(1120,0,60,FLOOR)], door:doorAt(1400)
+}),
+
+// 14 — flip gravity
+() => ({
+  hint:['Up is only an opinion.','Ask down.'], hintPos:{x:W/2,y:420},
+  spawn:{x:140,y:FLOOR-44},
+  solids:[floor(), R(0,0,W,80), R(1000,FLOOR-260,60,260)],
+  spikes:[R(300,80,600,26,{dir:'down'})],
+  door:doorAt(1360,80,{flip:true}),
+  update(){
+    if (deadT<=0 && (pressed.ArrowDown||pressed.KeyS) && P.ground){
+      P.gdir*=-1; P.ground=false; P.coyote=0; sfx.flip();
+    }
+  }
+}),
+
+// 15 — copy and paste yourself
+() => {
+  let copied=null; const statues=[];
+  const r = {
+    hint:['One of you is not enough.'], sub:'Copy that.', hintPos:{x:560,y:300},
+    spawn:{x:140,y:FLOOR-44}, solids:[floor(), R(1200,420,400,40)], door:doorAt(1460,420-96),
+    onKey(e){
+      if (!(e.ctrlKey||e.metaKey)) return;
+      if (e.code==='KeyC'){ e.preventDefault(); if (deadT>0) return; copied={x:P.x,y:P.y}; sfx.copy(); }
+      if (e.code==='KeyV'){
+        e.preventDefault(); if (!copied || deadT>0) return;
+        const s=R(copied.x,copied.y,30,44,{statue:true});
+        statues.push(s); r.solids.push(s);
+        if (statues.length>8){ const o=statues.shift(); r.solids.splice(r.solids.indexOf(o),1); }
+        if (overlap(P,s)){ P.y=s.y-P.h; P.vy=0; }
+        sfx.paste();
+      }
+    },
+    draw(c){
+      if (copied){
+        c.strokeStyle='rgba(200,200,195,0.35)'; c.lineWidth=2; c.setLineDash([5,5]);
+        c.strokeRect(copied.x+1,copied.y+1,28,42); c.setLineDash([]);
+      }
+    }
+  };
+  return r;
+},
+
+// 16 — darkness; only lit platforms exist
+() => {
+  const dark=document.createElement('canvas'); dark.width=W/2; dark.height=H/2;
+  const dc=dark.getContext('2d');
+  function hole(x,y,r){
+    const g=dc.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(0.55,'rgba(0,0,0,0.92)'); g.addColorStop(1,'rgba(0,0,0,0)');
+    dc.fillStyle=g; dc.beginPath(); dc.arc(x,y,r,0,7); dc.fill();
+  }
+  const r = {
+    noHint:true, cursor:'none',
+    hint:['It is dark.','Only what you light is really there.'], hintPos:{x:W/2,y:140},
+    spawn:{x:100,y:FLOOR-44},
+    solids:[R(0,FLOOR,320,H-FLOOR), R(400,720,120,18,{lit:true}), R(640,640,120,18,{lit:true}),
+            R(880,700,120,18,{lit:true}), R(1100,580,120,18,{lit:true}), R(1320,480,280,40)],
+    door:doorAt(1460,480-96),
+    drawOver(c){
+      dc.globalCompositeOperation='source-over'; dc.clearRect(0,0,W/2,H/2);
+      dc.fillStyle='rgba(4,4,4,0.985)'; dc.fillRect(0,0,W/2,H/2);
+      dc.globalCompositeOperation='destination-out';
+      if (mouse.in) hole(mouse.x/2,mouse.y/2,100);
+      if (deadT<=0) hole(pcx()/2,pcy()/2,26);
+      c.drawImage(dark,0,0,W,H);
+      drawHintFor(r);
+      if (mouse.in){ c.fillStyle='rgba(240,240,235,0.6)'; c.beginPath(); c.arc(mouse.x,mouse.y,3,0,7); c.fill(); }
+    }
+  };
+  return r;
+},
+
+// 17 — stomp the enemy to bounce
+() => {
+  const e={x:420,y:FLOOR-50,w:56,h:50,vx:170,min:280,max:1120,squash:0};
+  return {
+    hint:['Some heads are meant to be stepped on.'], hintPos:{x:620,y:220},
+    spawn:{x:100,y:FLOOR-44},
+    solids:[floor(), R(1240,380,360,40)], door:doorAt(1460,380-96),
+    update(dt){
+      if (e.squash>0){ e.squash-=dt; return; }
+      e.x+=e.vx*dt;
+      if (e.x<e.min){e.x=e.min;e.vx*=-1;} if (e.x>e.max){e.x=e.max;e.vx*=-1;}
+      if (deadT<=0 && fadeDir===0 && overlap(P,e)){
+        if (P.vy>0 && P.lastY+P.h<=e.y+16){ P.vy=-1500; P.boost=true; P.ground=false; e.squash=1.6; sfx.stomp(); }
+        else die('enemy');
+      }
+    },
+    draw(c){
+      if (e.squash>0){ c.fillStyle='#6f6f6c'; c.fillRect(e.x-4,FLOOR-12,e.w+8,12); return; }
+      const bob=Math.sin(time*12)*2;
+      c.fillStyle='#7e7e7a'; c.fillRect(e.x,e.y+bob,e.w,e.h-bob);
+      c.fillStyle='#a9a9a5'; c.fillRect(e.x,e.y+bob,e.w,8);
+      const f=Math.sign(e.vx);
+      c.fillStyle=C.player; c.fillRect(e.x+18+f*6,e.y+bob+18,8,10); c.fillRect(e.x+32+f*6,e.y+bob+18,8,10);
+      c.fillStyle=C.eye; c.fillRect(e.x+21+f*8,e.y+bob+21,3,5); c.fillRect(e.x+35+f*8,e.y+bob+21,3,5);
+      c.fillRect(e.x+15+f*6,e.y+bob+13,12,3); c.fillRect(e.x+31+f*6,e.y+bob+13,12,3);
+    }
+  };
+},
+
+// 18 — Caps Lock makes you big
+() => {
+  let want=capsOn;
+  function trySize(big){
+    const nw=big?60:30, nh=big?88:44;
+    const nr={x:pcx()-nw/2, y:P.y+P.h-nh, w:nw, h:nh};
+    if (solidList().some(o=>!o.oneway && overlap(nr,o))) return;
+    P.x=nr.x; P.y=nr.y; P.w=nw; P.h=nh; P.big=big; sfx.grow(big);
+  }
+  return {
+    noHint:true, spawn:{x:120,y:FLOOR-44},
+    solids:[floor(), R(700,FLOOR-300,60,300), R(1150,0,250,FLOOR-70)],
+    door:doorAt(1490),
+    onCaps(on){ want=on; },
+    update(){ if (deadT<=0 && want!==!!P.big) trySize(want); },
+    draw(c){
+      c.textAlign='center'; c.textBaseline='alphabetic';
+      if (P && P.big){ c.font=`600 92px ${SERIF}`; c.fillStyle=C.player; c.fillText('SPEAK UP.',400,320); }
+      else { c.font=`italic 500 30px ${SERIF}`; c.fillStyle=C.dim; c.fillText('speak up.',400,300); }
+    }
+  };
+},
+
+// 19 — pick yourself up and fling
+() => {
+  let aim=false;
+  return {
+    hint:['Pick yourself up.'], hintPos:{x:520,y:300},
+    spawn:{x:160,y:FLOOR-44},
+    solids:[floor(), R(1240,300,360,30), R(1150,0,450,150)],
+    door:doorAt(1470,300-96),
+    onMouseDown(){
+      if (deadT>0 || !P.ground) return;
+      if (Math.hypot(mouse.x-pcx(), mouse.y-pcy())<70){ aim=true; P.frozen=true; sfx.tick(); }
+    },
+    onMouseUp(){
+      if (!aim) return;
+      aim=false; P.frozen=false;
+      let vx=(pcx()-mouse.x)*6, vy=(pcy()-mouse.y)*6;
+      const m=Math.hypot(vx,vy), cap=1900;
+      if (m<90) return;
+      if (m>cap){ vx*=cap/m; vy*=cap/m; }
+      P.vx=vx; P.vy=vy; P.flung=true; P.boost=true; P.ground=false; P.coyote=0; sfx.fling();
+    },
+    update(){
+      if (deadT>0){ aim=false; P && (P.frozen=false); }
+      if (aim) cv.style.cursor='grabbing';
+      else cv.style.cursor = (P && P.ground && Math.hypot(mouse.x-pcx(),mouse.y-pcy())<70) ? 'grab' : 'default';
+    },
+    draw(c){
+      if (!aim) return;
+      const ax=pcx(), ay=pcy();
+      c.strokeStyle='rgba(220,220,215,0.5)'; c.lineWidth=3;
+      c.beginPath(); c.moveTo(ax,ay); c.lineTo(mouse.x,mouse.y); c.stroke();
+      let dx=ax-mouse.x, dy=ay-mouse.y; const m=Math.hypot(dx,dy)||1; const len=Math.min(m,317)*0.5;
+      c.strokeStyle=C.player; c.setLineDash([6,8]);
+      c.beginPath(); c.moveTo(ax,ay); c.lineTo(ax+dx/m*len, ay+dy/m*len); c.stroke(); c.setLineDash([]);
+    }
+  };
+},
+
+// 20 — repeat the melody on the pads
+() => {
+  const notes=[220,277.18,329.63,440];
+  const shades=['#4f4f4c','#828280','#b3b3b0','#efefec'];
+  const seq=[2,0,3,3,1];
+  const pads=[0,1,2,3].map(i=>R(260+i*280,FLOOR-110,140,16,{oneway:true,pad:i,color:shades[i],glow:0}));
+  const d=doorAt(1440,FLOOR-96,{visible:false,alpha:0});
+  let idx=0, solved=false, replayT=1.2, playing=0;
+  function playMelody(){ seq.forEach((n,i)=>tone(notes[n],0.42,'triangle',0.22,1,0.1+i*0.55)); playing=seq.length*0.55+0.3; }
+  return {
+    quiet:true,
+    hint:['Repeat after me.'], sub:'(sound on)', hintPos:{x:W/2,y:250},
+    spawn:{x:100,y:FLOOR-44}, solids:[floor(), ...pads], door:d,
+    update(dt){
+      playing-=dt; pads.forEach(p=>p.glow=Math.max(0,p.glow-dt*2.5));
+      if (solved){ d.alpha=Math.min(1,d.alpha+dt*1.2); return; }
+      if (idx===0){ replayT-=dt; if (replayT<=0){ playMelody(); replayT=7.5; } }
+      if (deadT>0) return;
+      const landed = P.ground && P.on && P.on.pad!==undefined && !(P.wasGround && P.wasOn===P.on);
+      if (landed){
+        const i=P.on.pad; P.on.glow=1; tone(notes[i],0.4,'triangle',0.22);
+        if (seq[idx]===i){
+          idx++;
+          if (idx===seq.length){ solved=true; d.visible=true; setTimeout(sfx.appear,450); }
+        } else { idx=0; setTimeout(sfx.wrong,250); replayT=1.6; }
+      }
+    },
+    draw(c){
+      pads.forEach(p=>{ if(p.glow>0){ c.fillStyle=`rgba(240,240,235,${p.glow*0.25})`; c.fillRect(p.x-6,p.y-14,p.w+12,10);} });
+      for (let i=0;i<seq.length;i++){
+        c.beginPath(); c.arc(W/2-60+i*30,390,6,0,7);
+        if (i<idx || solved){ c.fillStyle=C.solid; c.fill(); } else { c.strokeStyle=C.dim; c.lineWidth=2; c.stroke(); }
+      }
+      if (playing>0){
+        c.font=`500 40px ${SERIF}`; c.textAlign='center'; c.fillStyle=`rgba(140,140,136,${Math.min(1,playing)})`;
+        c.fillText('♪', W/2+Math.sin(time*3)*40, 160-((time*30)%30));
+      }
+    }
+  };
+},
+
+// 21 — let the eye fall asleep (stillness)
+() => {
+  let o=1, bars=1, snore=0;
+  const d=doorAt(1400,FLOOR-96,{open:false});
+  return {
+    hint:['Let it fall asleep.'], hintPos:{x:W/2,y:560},
+    spawn:{x:140,y:FLOOR-44}, solids:[floor()], door:d,
+    update(dt){
+      const active = activity || anyHeld() || (P && Math.abs(P.vx)>20);
+      if (active) o=Math.min(1,o+dt*0.45); else o=Math.max(0,o-dt/6);
+      d.open = o<0.3;
+      bars += ((d.open?0:1)-bars)*Math.min(1,dt*7);
+      if (o<0.15){ snore-=dt; if (snore<=0){ tone(85,1.4,'sine',0.09,0.75); snore=2.6; } } else snore=0.4;
+    },
+    draw(c){
+      const ex=W/2, ey=300, ew=170, eh=70;
+      c.save();
+      c.beginPath(); c.moveTo(ex-ew,ey); c.quadraticCurveTo(ex,ey-eh*2,ex+ew,ey); c.quadraticCurveTo(ex,ey+eh*2,ex-ew,ey); c.closePath();
+      c.fillStyle='#e9e9e6'; c.fill(); c.clip();
+      const px = ex + Math.max(-90,Math.min(90,(pcx()-ex)*0.12));
+      c.fillStyle='#151515'; c.beginPath(); c.arc(px,ey+6,42,0,7); c.fill();
+      c.fillStyle='#e9e9e6'; c.beginPath(); c.arc(px-12,ey-6,8,0,7); c.fill();
+      c.fillStyle=C.room; c.fillRect(ex-ew-5, ey-eh-10, ew*2+10, (eh*2+20)*(1-o));
+      c.restore();
+      c.strokeStyle='#e9e9e6'; c.lineWidth=4;
+      c.beginPath(); c.moveTo(ex-ew,ey); c.quadraticCurveTo(ex,ey+eh*2,ex+ew,ey); c.stroke();
+      if (o<0.15){ c.font=`italic 500 36px ${SERIF}`; c.fillStyle=C.dim; c.textAlign='left'; c.fillText('z', ex+ew+10, ey-20-((time*20)%30)); }
+      drawBars(d,bars);
+    }
+  };
+},
+
+// 22 — resize the window to make room
+() => {
+  const open0 = keyQuest>=1;
+  const Lw=R(0,0,560,FLOOR), Rw=R(1040,0,560,FLOOR);
+  if (open0){ Lw.w=0; Rw.x=W; }
+  let open=open0, t=0;
+  const key = keyQuest===1 ? {x:110,y:FLOOR-60} : null;
+  const d=doorAt(1440,FLOOR-96,{visible:open0});
+  const r = {
+    hint:[open0?'Much better.':'It is cramped in here.'], hintPos:{x:W/2,y:300},
+    spawn: open0 ? {x:1300,y:FLOOR-44} : {x:785,y:FLOOR-44},
+    solids:[floor(), Lw, Rw], door:d,
+    onResize(){ if (!open){ open=true; sfx.rumble(); r.hint=['Much better.']; } },
+    update(dt){
+      t+=dt;
+      if (open){ Lw.w+=(0-Lw.w)*Math.min(1,dt*2); Rw.x+=(W-Rw.x)*Math.min(1,dt*2); if (Rw.x>1510) d.visible=true; }
+      if (key && keyQuest===1 && deadT<=0 && overlap(P,{x:key.x-18,y:key.y-18,w:36,h:36})){ keyQuest=2; sfx.appear(); save(); }
+    },
+    draw(c){
+      if (key && keyQuest===1) drawKey(key.x, key.y+Math.sin(time*3)*4);
+      if (!open && t>45){ c.font=SUBFONT; c.textAlign='center'; c.fillStyle=C.dim; c.fillText('(the window, perhaps)', W/2, 360); }
+    }
+  };
+  return r;
+},
+
+// 23 — you left the key in the previous room
+() => {
+  const has = keyQuest===2;
+  const d=doorAt(1420,FLOOR-96,{open:has});
+  return {
+    hint:['You left something behind.'], hintPos:{x:W/2,y:300}, leftOpen:true,
+    spawn:{x:420,y:FLOOR-44}, solids:[floor()], door:d,
+    update(){
+      if (deadT>0 || fadeDir) return;
+      if (P.x < -P.w*0.6){ if (keyQuest<1) keyQuest=1; goTo(21); }
+    },
+    draw(c){
+      const g=c.createLinearGradient(0,0,140,0); g.addColorStop(0,'rgba(220,220,215,0.08)'); g.addColorStop(1,'rgba(220,220,215,0)');
+      c.fillStyle=g; c.fillRect(0,0,140,FLOOR);
+      if (!d.open){
+        c.fillStyle=C.solid; c.beginPath(); c.arc(d.x+d.w/2,d.y+44,7,0,7); c.fill();
+        c.fillRect(d.x+d.w/2-3,d.y+44,6,16);
+      }
+    }
+  };
+},
+
+// 24 — it only moves when you look away
+() => {
+  const d=doorAt(758,120); let moved=false, t=0;
+  const r = {
+    hint:["It only moves when you're not looking."], hintPos:{x:W/2,y:440},
+    spawn:{x:140,y:FLOOR-44}, solids:[floor(), R(720,216,140,16)], door:d,
+    onHidden(){
+      if (moved) return;
+      moved=true; d.x=1420; d.y=FLOOR-96;
+      r.hint=['Thank you for looking away.'];
+    },
+    update(dt){ t+=dt; },
+    draw(c){
+      if (!moved && t>45){
+        c.font=SUBFONT; c.textAlign='center'; c.fillStyle=C.dim;
+        c.fillText('(it is very shy. look at something else for a moment.)', W/2, 500);
+      }
+    }
+  };
+  return r;
+},
+];
+
+// ---------- room lifecycle ----------
+function loadRoom(i){
+  roomIdx=i; room=ROOMS[i]();
+  room.solids=room.solids||[]; room.spikes=room.spikes||[]; room.age=0;
+  if (room.init) room.init();
+  spawnPlayer(); particles=[];
+  cv.style.cursor = room.cursor || 'default';
+  setDrone(); save();
+}
+function spawnPlayer(){
+  P={x:room.spawn.x,y:room.spawn.y,w:30,h:44,vx:0,vy:0,ground:false,face:1,gdir:1,
+     coyote:0,buffer:0,ghost:!!room.ghost,lastY:room.spawn.y,on:null,wasOn:null,wasGround:false,
+     boost:false,flung:false,frozen:false,extraJump:0,bonkT:0,impact:0,big:false};
+}
+function die(kind){
+  if (deadT>0 || fadeDir) return;
+  deaths++; sfx.die(); deadT=0.8;
+  for (let i=0;i<22;i++){
+    const a=Math.random()*Math.PI*2, s=150+Math.random()*450;
+    particles.push({x:pcx(),y:pcy(),vx:Math.cos(a)*s,vy:Math.sin(a)*s-200,t:0.9+Math.random()*0.4,sz:4+Math.random()*6});
+  }
+  if (room.onDeath) room.onDeath(kind);
+}
+function goNext(){ if (fadeDir) return; sfx.door(); fadeDir=1; pendingRoom=roomIdx+1; }
+function goTo(i){ if (fadeDir) return; sfx.whoosh(); fadeDir=1; pendingRoom=i; }
+function newGame(){ clearSave(); deaths=0; playTime=0; keyQuest=0; state='play'; loadRoom(0); }
+function handleKey(e){
+  if (state==='title'){
+    if (e.code==='KeyN' || !saved) newGame();
+    else { deaths=saved.deaths||0; playTime=saved.time||0; keyQuest=saved.keyQuest||0; state='play'; loadRoom(Math.min(saved.room||0,ROOMS.length-1)); }
+    return;
+  }
+  if (state==='end'){ if (e.key==='Enter') newGame(); return; }
+  if (e.code==='Escape'){ loadRoom(roomIdx); return; }
+  if (e.code==='KeyM' && roomIdx!==5 && !e.ctrlKey && !e.metaKey){
+    muted=!muted; if (master) master.gain.value = muted?0:0.4;
+  }
+  if (room && room.onKey) room.onKey(e);
+}
+
+// ---------- physics ----------
+function litBy(o){
+  if (!mouse.in) return false;
+  const cx=Math.max(o.x,Math.min(mouse.x,o.x+o.w)), cy=Math.max(o.y,Math.min(mouse.y,o.y+o.h));
+  return Math.hypot(mouse.x-cx, mouse.y-cy) < 150;
+}
+function solidList(){
+  let s=room.solids;
+  if (room.dynamicSolids) s=s.concat(room.dynamicSolids());
+  return s.filter(o=>!o.off && !(o.ghostly && P.ghost) && !(o.lit && !litBy(o)));
+}
+function updatePlayer(dt){
+  P.lastY=P.y; P.wasGround=P.ground; P.wasOn=P.on; P.impact=0; P.bonkT-=dt;
+  const L=keys.ArrowLeft||keys.KeyA, Rk=keys.ArrowRight||keys.KeyD;
+  let dir=(Rk?1:0)-(L?1:0);
+  let spd=360;
+  if (room.twoHands && ((dir>0 && keys.ArrowRight && keys.KeyD) || (dir<0 && keys.ArrowLeft && keys.KeyA))) spd=780;
+  if (P.frozen) dir=0;
+  if (dir) P.face=dir;
+  if (!P.flung) P.vx += (dir*spd-P.vx)*Math.min(1,dt*(P.ground?22:11));
+  if (pressed.Space||pressed.ArrowUp||pressed.KeyW) P.buffer=0.12;
+  const held=keys.Space||keys.ArrowUp||keys.KeyW;
+  P.buffer-=dt; P.coyote-=dt;
+  if (!P.frozen && P.buffer>0 && (P.coyote>0 || P.extraJump>0)){
+    if (P.coyote<=0) P.extraJump--;
+    P.vy=-860*(P.big?1.42:1)*P.gdir; P.buffer=0; P.coyote=0; P.ground=false; P.boost=false; P.flung=false; sfx.jump();
+  }
+  if (P.vy*P.gdir>=0) P.boost=false;
+  let g=2200; if (!held && !P.boost && P.vy*P.gdir<0) g*=2.2;
+  P.vy += g*P.gdir*dt;
+  if (P.vy*P.gdir>1300) P.vy=1300*P.gdir;
+
+  const solids=solidList();
+  const steps=Math.max(1,Math.ceil(dt*240)), sd=dt/steps;
+  P.ground=false; P.on=null;
+  for (let s=0;s<steps;s++){
+    P.x+=P.vx*sd;
+    for (const o of solids){
+      if (o.oneway || !overlap(P,o)) continue;
+      if (P.vx>0) P.x=o.x-P.w; else if (P.vx<0) P.x=o.x+o.w;
+    }
+    const pb=P.y+P.h;
+    P.y+=P.vy*sd;
+    for (const o of solids){
+      if (!overlap(P,o)) continue;
+      if (o.oneway){
+        if (P.gdir>0 && P.vy>=0 && pb<=o.y+1){ P.impact=Math.max(P.impact,P.vy); P.y=o.y-P.h; P.vy=0; P.ground=true; P.on=o; }
+        continue;
+      }
+      if (P.vy>0){
+        P.y=o.y-P.h;
+        if (P.gdir>0){ P.impact=Math.max(P.impact,P.vy); P.ground=true; P.on=o; }
+      } else if (P.vy<0){
+        P.y=o.y+o.h;
+        if (P.gdir<0){ P.ground=true; P.on=o; }
+        else if (room.bonk){ P.extraJump=1; P.bonkT=0.35; sfx.bonk(); }
+      }
+      P.vy=0;
+    }
+  }
+  if (P.ground){ P.coyote=0.09; P.flung=false; P.extraJump=0; }
+
+  if (room.wrap){ if (P.x<-P.w) P.x=W; else if (P.x>W) P.x=-P.w; }
+  else {
+    if (P.x<0 && !room.leftOpen) P.x=0;
+    if (P.x>W-P.w) P.x=W-P.w;
+  }
+  if (P.y>H+60 || P.y<-400) die('fall');
+}
+function checkHazards(){
+  if (!P.ghost) for (const s of room.spikes) if (overlap(P,inset(s,5))) { die('spike'); return; }
+  const d=room.door;
+  if (d && d.visible!==false && d.open!==false && (d.alpha===undefined || d.alpha>0.6) && overlap(inset(P,6),d)) goNext();
+}
+
+// ---------- drawing ----------
+function drawBody(x,y,w,h,face,gdir,alpha,body,eye){
+  const s=h/44;
+  ctx.save(); ctx.globalAlpha=alpha;
+  ctx.fillStyle=body; ctx.fillRect(x,y,w,h);
+  ctx.fillStyle=eye;
+  const ey = gdir>0 ? y+11*s : y+h-(11+8)*s;
+  const ex = x+w/2+face*5*s;
+  ctx.fillRect(ex-8*s,ey,4*s,8*s); ctx.fillRect(ex+3*s,ey,4*s,8*s);
+  ctx.restore();
+}
+function drawPlayer(){
+  if (deadT>0 || !P) return;
+  if (Math.abs(P.vx)>500){
+    ctx.fillStyle='rgba(240,240,235,0.25)';
+    for (let i=0;i<3;i++) ctx.fillRect(P.x-Math.sign(P.vx)*(20+i*18), P.y+8+i*12, 14, 3);
+  }
+  if (keyQuest===2 && (roomIdx===21 || roomIdx===22)) drawKey(pcx()+6, P.y-18+Math.sin(time*4)*2);
+  if (P.ghost){
+    const bob=Math.sin(time*4)*3, x=P.x, y=P.y+bob;
+    ctx.save(); ctx.globalAlpha=0.42; ctx.fillStyle=C.player;
+    ctx.beginPath(); ctx.moveTo(x,y+44); ctx.lineTo(x,y+8);
+    ctx.quadraticCurveTo(x,y,x+15,y); ctx.quadraticCurveTo(x+30,y,x+30,y+8);
+    ctx.lineTo(x+30,y+44);
+    for (let i=0;i<3;i++){ ctx.lineTo(x+30-i*10-5,y+38); ctx.lineTo(x+30-(i+1)*10,y+44); }
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    ctx.fillStyle='rgba(20,20,20,0.8)';
+    const ex=x+15+P.face*5; ctx.fillRect(ex-8,y+12,4,8); ctx.fillRect(ex+3,y+12,4,8);
+    return;
+  }
+  drawBody(P.x,P.y,P.w,P.h,P.face,P.gdir,1,C.player,C.eye);
+}
+function drawDoor(d){
+  if (!d || d.visible===false) return;
+  const col=d.frame||C.solid;
+  ctx.save(); ctx.globalAlpha=d.alpha===undefined?1:d.alpha;
+  if (d.flip){ ctx.translate(0,d.y*2+d.h); ctx.scale(1,-1); }
+  ctx.fillStyle='#050505'; ctx.fillRect(d.x,d.y,d.w,d.h);
+  ctx.strokeStyle=col; ctx.lineWidth=5; ctx.strokeRect(d.x+2.5,d.y+2.5,d.w-5,d.h-2.5);
+  ctx.lineWidth=2; ctx.strokeStyle='#3b3b39';
+  ctx.strokeRect(d.x+13,d.y+15,d.w-26,28); ctx.strokeRect(d.x+13,d.y+52,d.w-26,32);
+  ctx.fillStyle=col; ctx.beginPath(); ctx.arc(d.x+d.w-15,d.y+50,4,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawBars(d,bars){
+  if (bars<=0.001) return;
+  ctx.save(); ctx.beginPath(); ctx.rect(d.x-6,d.y-4,d.w+12,d.h+4); ctx.clip();
+  ctx.fillStyle=C.solid; const off=(1-bars)*(d.h+8);
+  for (let i=0;i<5;i++) ctx.fillRect(d.x-2+i*16, d.y-4-off, 5, d.h+4);
+  ctx.fillRect(d.x-6, d.y-4-off, d.w+12, 6);
+  ctx.restore();
+}
+function drawSolids(){
+  for (const s of room.solids){
+    if (s.text) continue;
+    if (s.statue){ drawBody(s.x,s.y,30,44,1,1,1,'#8d8d89','#151515'); continue; }
+    if (s.cracked && s.off) continue;
+    if (s.ghostly){
+      ctx.save(); ctx.fillStyle='#2a2a28'; ctx.fillRect(s.x,s.y,s.w,s.h);
+      ctx.beginPath(); ctx.rect(s.x,s.y,s.w,s.h); ctx.clip();
+      ctx.strokeStyle='#8a8a86'; ctx.lineWidth=3;
+      for (let y=-s.w; y<s.h+s.w; y+=22){ ctx.beginPath(); ctx.moveTo(s.x,s.y+y); ctx.lineTo(s.x+s.w,s.y+y-s.w); ctx.stroke(); }
+      ctx.restore(); continue;
+    }
+    if (s.off && s.flash>0){ ctx.globalAlpha=0.25+0.75*(1-s.flash/0.4); }
+    ctx.fillStyle=s.color||C.solid; ctx.fillRect(s.x,s.y,s.w,s.h);
+    if (s.bonker){ ctx.fillStyle='#8a8a86'; ctx.fillRect(s.x,s.y+s.h-5,s.w,5); }
+    ctx.globalAlpha=1;
+  }
+}
+function drawSpikes(){
+  ctx.fillStyle=C.solid;
+  for (const s of room.spikes){
+    const n=Math.max(1,Math.round(s.w/24)), tw=s.w/n;
+    ctx.beginPath();
+    for (let i=0;i<n;i++){
+      const x=s.x+i*tw;
+      if (s.dir==='down'){ ctx.moveTo(x,s.y); ctx.lineTo(x+tw/2,s.y+s.h); ctx.lineTo(x+tw,s.y); }
+      else { ctx.moveTo(x,s.y+s.h); ctx.lineTo(x+tw/2,s.y); ctx.lineTo(x+tw,s.y+s.h); }
+    }
+    ctx.fill();
+  }
+}
+function drawHintFor(r){
+  if (!r.hint) return;
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  ctx.font=HINTFONT; ctx.fillStyle=C.text;
+  r.hint.forEach((l,i)=>ctx.fillText(l, r.hintPos.x, r.hintPos.y+i*56));
+  if (r.sub){ ctx.font=SUBFONT; ctx.fillStyle=C.dim; ctx.fillText(r.sub, r.hintPos.x, r.hintPos.y+r.hint.length*56+6); }
+}
+function drawHUD(){
+  ctx.font=HUDFONT; ctx.textBaseline='alphabetic'; ctx.fillStyle='#4a4a47';
+  ctx.textAlign='left'; ctx.fillText(`Room ${roomIdx+1} of ${ROOMS.length}`, 34, 44);
+  ctx.textAlign='right'; ctx.fillText(`Esc restarts the room   ·   M mutes${muted?' (muted)':''}`, W-34, 44);
+  if (deaths){ ctx.textAlign='left'; ctx.fillText(`${deaths} ${deaths===1?'death':'deaths'}`, 34, 72); }
+}
+function fmtTime(t){ const m=Math.floor(t/60), s=Math.floor(t%60); return `${m}:${String(s).padStart(2,'0')}`; }
+
+function draw(){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle='#080808'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.setTransform(dpr*scale,0,0,dpr*scale,dpr*offX,dpr*offY);
+  ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
+  ctx.fillStyle=C.room; ctx.fillRect(0,0,W,H);
+
+  if (state==='title'){
+    ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+    ctx.font=`italic 500 120px ${SERIF}`; ctx.fillStyle=C.player; ctx.fillText('Twenty-Four Doors', W/2, 400);
+    ctx.font=`500 34px ${SERIF}`; ctx.fillStyle=C.text;
+    ctx.fillText('Each room has one way out. Each room tells you how, sort of.', W/2, 470);
+    ctx.fillStyle = Math.floor(time*1.5)%2 ? C.text : C.dim;
+    ctx.font=HINTFONT;
+    if (saved && saved.room>0){
+      ctx.fillText(`Press any key to return to room ${saved.room+1}`, W/2, 620);
+      ctx.font=SUBFONT; ctx.fillStyle=C.dim; ctx.fillText('or press N to start from the first room', W/2, 664);
+    } else ctx.fillText('Press any key', W/2, 620);
+    ctx.font=SUBFONT; ctx.fillStyle=C.dim; ctx.fillText('Keyboard and mouse. Sound helps.', W/2, 820);
+    drawDoor(doorAt(W/2-32,94,{alpha:0.9}));
+  } else if (state==='end'){
+    ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+    ctx.font=`italic 500 96px ${SERIF}`; ctx.fillStyle=C.player; ctx.fillText('You found every door.', W/2, 400);
+    ctx.font=HINTFONT; ctx.fillStyle=C.text;
+    ctx.fillText(`${deaths} ${deaths===1?'death':'deaths'} in ${fmtTime(playTime)}`, W/2, 480);
+    ctx.font=SUBFONT; ctx.fillStyle=C.dim; ctx.fillText('Press Enter to walk through them again', W/2, 600);
+  } else {
+    drawSolids(); drawSpikes();
+    if (!room.noHint) drawHintFor(room);
+    drawDoor(room.door);
+    if (room.draw) room.draw(ctx);
+    drawPlayer();
+    ctx.fillStyle=C.player;
+    for (const p of particles){ ctx.globalAlpha=Math.max(0,Math.min(1,p.t)); ctx.fillRect(p.x,p.y,p.sz,p.sz); }
+    ctx.globalAlpha=1;
+    if (room.drawOver) room.drawOver(ctx);
+    drawHUD();
+  }
+  ctx.restore();
+  if (fade>0){
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle=`rgba(8,8,8,${fade})`; ctx.fillRect(0,0,cv.width,cv.height);
+  }
+}
+
+// ---------- loop ----------
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(1/30,(now-last)/1000); last=now; time+=dt;
+  if (state==='play'){
+    playTime+=dt; room.age+=dt;
+    if (fadeDir!==1){
+      if (deadT>0){ deadT-=dt; if (deadT<=0) spawnPlayer(); }
+      else updatePlayer(dt);
+    }
+    if (room.update) room.update(dt);
+    if (deadT<=0 && fadeDir===0) checkHazards();
+  }
+  for (const p of particles){ p.vy+=1400*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.t-=dt; }
+  particles=particles.filter(p=>p.t>0);
+  if (fadeDir){
+    fade+=dt*3*fadeDir;
+    if (fadeDir===1 && fade>=1){
+      fade=1;
+      if (pendingRoom>=ROOMS.length){ state='end'; clearSave(); cv.style.cursor='default'; setDrone(); }
+      else loadRoom(pendingRoom);
+      fadeDir=-1;
+    } else if (fadeDir===-1 && fade<=0){ fade=0; fadeDir=0; }
+  }
+  draw();
+  pressed={}; activity=false;
+  requestAnimationFrame(frame);
+}
+const fontReady = document.fonts && document.fonts.load ? Promise.race([
+  Promise.all([document.fonts.load(PLATFONT), document.fonts.load(HINTFONT)]),
+  new Promise(r=>setTimeout(r,2500))
+]) : Promise.resolve();
+fontReady.catch(()=>{}).then(()=>{ cv.focus(); requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>
