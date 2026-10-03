@@ -81,6 +81,25 @@ kbd{font:inherit;font-weight:600;color:var(--text);background:#120d38;border:1px
 #touch .grp{display:flex;gap:12px;pointer-events:auto}
 #touch button{width:76px;height:76px;border-radius:50%;font-size:28px;padding:0;background:rgba(27,20,80,.55);touch-action:none}
 #touch button.j{width:92px;height:92px;background:rgba(63,242,255,.22);border-color:var(--cyan)}
+.who{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;font-size:16px;color:var(--muted)}
+.who b{color:var(--text)}
+button.mini{padding:6px 12px;font-size:14px;border-radius:9px}
+.lbwrap{margin-top:14px}
+.lbhead{display:flex;justify-content:space-between;align-items:baseline;font-weight:700;font-size:16px;margin-bottom:6px}
+.lblist{list-style:none;margin:0;padding:0;touch-action:pan-y}
+.lblist li{display:grid;grid-template-columns:3.2em 1fr auto;gap:8px;align-items:center;padding:7px 10px;border-radius:9px;font-size:16px;font-variant-numeric:tabular-nums}
+.lblist li:nth-child(odd){background:rgba(18,13,56,.6)}
+.lblist li .rk{color:var(--muted);font-weight:700}
+.lblist li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lblist li .mt{font-weight:700}
+.lblist li.me{background:rgba(63,242,255,.16);box-shadow:inset 0 0 0 1px rgba(63,242,255,.45)}
+.lblist li.me .nm::after{content:" (you)";color:var(--cyan);font-weight:600}
+.lblist li.gap{background:none;justify-content:center;display:block;text-align:center;color:var(--muted);padding:2px}
+.lblist li:nth-child(1) .rk{color:var(--sun)}
+.lbmsg{color:var(--muted);font-size:14px;margin-top:8px;min-height:1em}
+#lbFull{max-height:min(52vh,460px);overflow:auto}
+#nickIn{font:inherit;font-size:20px;font-weight:600;width:100%;margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid var(--edge);background:#120d38;color:var(--text);-webkit-user-select:text;user-select:text;touch-action:auto}
+#nickIn:focus{outline:2px solid var(--cyan);outline-offset:2px}
 @media (prefers-reduced-motion: reduce){ #toast,#flash{transition:none} }
 </style>
 </head>
@@ -108,8 +127,9 @@ kbd{font:inherit;font-weight:600;color:var(--text);background:#120d38;border:1px
   </div>
   <p class="sub" style="margin-top:14px">Orange tiles mark the edge of a hole. Slip through one and you can still land on the outside of the pipe or drop back in, you only lose once you fall clear. Red mines leave you slow and sluggish for a few seconds.</p>
   <div class="maprow"><span>Pipe</span><div class="seg" role="group" aria-label="Pipe type"><button id="mFlat">Flat</button><button id="mBumpy">Bumpy</button><button id="mSprint">Sprint 10k</button></div><span class="sub" id="mapDesc"></span></div>
-  <div class="row"><button class="primary" id="bPlay">Play</button><button id="bShop1">Skins</button></div>
-  <div class="sub" style="margin-top:14px" id="mBest"></div>
+  <div class="row"><button class="primary" id="bPlay">Play</button><button id="bShop1">Skins</button><button id="bLB1">Leaderboard</button></div>
+  <div class="who"><span>Playing as <b id="nickL"></b></span><button class="mini" id="bRename1">Rename</button></div>
+  <div class="sub" style="margin-top:10px" id="mBest"></div>
 </div></div>
 
 <div class="overlay" id="over"><div class="card">
@@ -118,7 +138,8 @@ kbd{font:inherit;font-weight:600;color:var(--text);background:#120d38;border:1px
   <div class="stat"><span id="oBestL">Best run</span><b id="oBest">0 m</b></div>
   <div class="stat"><span>Total distance rolled</span><b id="oTotal">0 m</b></div>
   <div id="unlocks"></div>
-  <div class="row"><button class="primary" id="bRetry">Roll again</button><button id="bShop2">Skins</button><button id="bMenu">Menu</button></div>
+  <div class="lbwrap" id="oLBWrap"><div class="lbhead"><span id="oLBTitle">Global top 5</span><span class="sub" id="oLBRank"></span></div><ol class="lblist" id="oLB"></ol><div class="lbmsg" id="oLBMsg"></div></div>
+  <div class="row"><button class="primary" id="bRetry">Roll again</button><button id="bLB2">Leaderboard</button><button id="bShop2">Skins</button><button id="bMenu">Menu</button></div>
 </div></div>
 
 <div class="overlay" id="shop"><div class="card">
@@ -126,6 +147,23 @@ kbd{font:inherit;font-weight:600;color:var(--text);background:#120d38;border:1px
   <div class="sub" id="sBest">Reach a distance in a single run to unlock a skin.</div>
   <div class="grid" id="sGrid"></div>
   <div class="row"><button class="primary" id="bShopBack">Done</button></div>
+</div></div>
+
+<div class="overlay" id="lbo"><div class="card">
+  <h2>Global leaderboard</h2>
+  <div class="maprow" style="margin-top:8px"><div class="seg" role="group" aria-label="Leaderboard pipe"><button id="lbFlat">Flat</button><button id="lbBumpy">Bumpy</button></div><span class="sub" id="lbMine"></span></div>
+  <div class="lbwrap" id="lbFull"><ol class="lblist" id="lbList"></ol></div>
+  <div class="lbmsg" id="lbMsg"></div>
+  <div class="who" style="margin-top:10px"><span>Playing as <b id="nickL2"></b></span><button class="mini" id="bRename2">Rename</button></div>
+  <div class="row"><button class="primary" id="bLBBack">Done</button></div>
+</div></div>
+
+<div class="overlay" id="nameo"><div class="card" style="max-width:420px">
+  <h2>Your nickname</h2>
+  <div class="sub">Shown on the global leaderboard. Up to 16 characters.</div>
+  <input id="nickIn" type="text" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Nickname">
+  <div class="lbmsg" id="nickMsg"></div>
+  <div class="row"><button class="primary" id="bNickSave">Save</button><button id="bNickCancel">Cancel</button></div>
 </div></div>
 
 <div class="overlay" id="pause"><div class="card" style="max-width:360px;text-align:center">
@@ -151,6 +189,149 @@ const KEY='gravitube.v1';
 let save={best:0,total:0,skin:'pearl'};
 try{const r=localStorage.getItem(KEY); if(r) Object.assign(save,JSON.parse(r));}catch(e){}
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save));}catch(e){}};
+
+/* ---------------- global leaderboard + nicknames ---------------- */
+const LBMAPS=['flat','bumpy'];
+const MAPNAME={flat:'Flat',bumpy:'Bumpy'};
+const cleanNick=n=>String(n||'').replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e]/g,'').replace(/\s+/g,' ').trim().slice(0,16);
+if(!cleanNick(save.nick)){save.nick='Guest'+(1000+Math.floor(Math.random()*9000));save.nickCustom=false;persist();}
+const LB={
+  db:null,uid:null,canWrite:true,state:'connecting',rows:{flat:[],bumpy:[]},loaded:{flat:false,bumpy:false},
+  mine:{flat:null,bumpy:null},rank:{flat:null,bumpy:null},tab:'flat',modal:null,from:null,lastRun:null,q:Promise.resolve(),
+  ref(m){return this.db.doc('lb_'+m+'/'+this.uid);},
+  enqueue(fn){this.q=this.q.then(fn).catch(e=>this.fail(e));return this.q;},
+  fail(e){const c=e&&e.code;
+    if(c==='invalid_argument'){this.canWrite=false;this.msg='Your access to this game is view-only, so scores are not posted.';}
+    else if(c==='quota_exceeded'){this.msg='The leaderboard is full right now, so your score was not posted.';}
+    else if(c==='revoked'){this.state='off';this.msg='';}
+    else this.msg='Could not reach the leaderboard. Your score is still saved on this device.';
+    if(this.lastRun&&this.lastRun.status==='posting')this.lastRun.status='failed';
+    this.renderAll();},
+  async init(){
+    let db=null,user=null;
+    try{if(window.claude&&window.claude.use)[db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);}catch(e){}
+    if(!db){this.state='off';this.renderAll();return;}
+    this.db=db;
+    try{this.uid=user?await user.id():null;}catch(e){this.uid=null;}
+    if(user){try{if(await user.can('data.write')===false)this.canWrite=false;}catch(e){}}
+    if(!this.uid)this.canWrite=false;
+    this.state='on';
+    for(const m of LBMAPS){
+      db.collection('lb_'+m).orderBy('m','desc').limit(50).onSnapshot(sn=>{
+        this.rows[m]=sn.docs.map(d=>{const v=d.data()||{};return{id:d.id,nick:cleanNick(v.nick)||'Player',m:Math.max(0,Math.floor(+v.m||0))};});
+        this.loaded[m]=true;this.refreshRank(m);this.renderAll();
+      },()=>{this.state='off';this.renderAll();});
+      if(this.uid)this.ref(m).onSnapshot(sn=>{this.mine[m]=sn.exists?sn.data():null;this.refreshRank(m);this.renderAll();},()=>{});
+    }
+    if(this.uid){
+      try{const p=await db.doc('data/users/'+this.uid+'/profile').get();
+        const n=p.exists&&cleanNick(p.data().nick);
+        if(n&&n!==save.nick){save.nick=n;save.nickCustom=true;persist();}
+        else if(!p.exists&&this.canWrite)this.enqueue(()=>db.doc('data/users/'+this.uid+'/profile').set({nick:save.nick}));
+      }catch(e){}
+    }
+    this.renderAll();
+  },
+  // rank for players outside the top 50
+  async refreshRank(m){
+    const me=this.mine[m];if(!me||!this.loaded[m]){this.rank[m]=null;return;}
+    const i=this.rows[m].findIndex(r=>r.id===this.uid);
+    if(i>=0){this.rank[m]=i+1;return;}
+    if(this.rank[m]&&this.rank[m].pendingFor===me.m)return;
+    this.rank[m]={pendingFor:me.m};
+    try{const sn=await this.db.collection('lb_'+m).where('m','>',me.m).limit(1000).get();
+      this.rank[m]=sn.size>=1000?'1000+':sn.size+1;}catch(e){this.rank[m]=null;}
+    this.renderAll();
+  },
+  submit(m,dist,t){
+    this.msg='';
+    if(!LBMAPS.includes(m)){this.lastRun=null;this.renderOver();return;}
+    const run=this.lastRun={m,dist,status:'posting'};
+    this.renderOver();
+    this.enqueue(async()=>{
+      if(this.state!=='on'){run.status='off';this.renderOver();return;}
+      if(!this.canWrite){run.status='view';this.renderOver();return;}
+      if(dist<1){run.status='kept';this.renderOver();return;}
+      const ref=this.ref(m),cur=await ref.get();
+      const prev=cur.exists?Math.floor(+cur.data().m||0):0;
+      if(dist<=prev){run.status='kept';this.renderOver();return;}
+      await ref.set({nick:save.nick,m:dist,t:Math.round((t||0)*10)/10,at:Date.now()});
+      run.status='posted';run.prev=prev;this.renderAll();
+    });
+  },
+  setNick(n){
+    n=cleanNick(n);if(!n)return false;
+    save.nick=n;save.nickCustom=true;persist();this.renderAll();
+    if(this.state==='on'&&this.canWrite&&this.uid){
+      this.enqueue(()=>this.db.doc('data/users/'+this.uid+'/profile').set({nick:n}));
+      for(const m of LBMAPS)this.enqueue(async()=>{const r=this.ref(m),c=await r.get();if(c.exists&&c.data().nick!==n)await r.update({nick:n});});
+    }
+    return true;
+  },
+  // ---------- rendering ----------
+  fillList(el,m,n){
+    el.textContent='';const rows=this.rows[m].slice(0,n);
+    const add=(rk,nick,meters,me)=>{const li=document.createElement('li');if(me)li.className='me';
+      const a=document.createElement('span');a.className='rk';a.textContent='#'+rk;
+      const b=document.createElement('span');b.className='nm';b.textContent=nick;
+      const c=document.createElement('span');c.className='mt';c.textContent=meters.toLocaleString('en-US')+' m';
+      li.append(a,b,c);el.appendChild(li);};
+    rows.forEach((r,i)=>add(i+1,r.id===this.uid?save.nick:r.nick,r.m,r.id===this.uid));
+    const me=this.mine[m],rk=this.rank[m];
+    if(me&&!rows.some(r=>r.id===this.uid)){
+      const gap=document.createElement('li');gap.className='gap';gap.textContent='⋯';el.appendChild(gap);
+      add(typeof rk==='number'||typeof rk==='string'?rk:'?',save.nick,Math.floor(+me.m||0),true);
+    }
+    return rows.length;
+  },
+  renderNick(){$('nickL').textContent=save.nick;$('nickL2').textContent=save.nick;},
+  renderOver(){
+    const wrap=$('oLBWrap');if(!wrap)return;
+    const r=this.lastRun;
+    if(!r){wrap.style.display=this.state==='off'?'none':'';
+      $('oLBTitle').textContent='Global leaderboard';$('oLBRank').textContent='';$('oLB').textContent='';
+      $('oLBMsg').textContent='Leaderboards rank distance on the Flat and Bumpy pipes.';return;}
+    if(this.state==='off'){wrap.style.display='none';return;}
+    wrap.style.display='';
+    $('oLBTitle').textContent='Global top 5 · '+MAPNAME[r.m];
+    const rk=this.rank[r.m];$('oLBRank').textContent=this.mine[r.m]&&rk&&typeof rk!=='object'?'Your rank #'+rk:'';
+    const n=this.fillList($('oLB'),r.m,5);
+    let msg='';
+    if(this.msg)msg=this.msg;
+    else if(r.status==='posting')msg='Posting your score…';
+    else if(r.status==='posted')msg=r.prev?`New personal best, up from ${r.prev.toLocaleString('en-US')} m.`:'Your score is on the board.';
+    else if(r.status==='kept'){const b=this.mine[r.m];msg=b?`Your best of ${Math.floor(+b.m).toLocaleString('en-US')} m stays on the board.`:'';}
+    else if(r.status==='view')msg='Your access to this game is view-only, so scores are not posted.';
+    if(!n&&this.loaded[r.m]&&!msg)msg='No scores yet. Be the first.';
+    if(this.state==='connecting')msg='Connecting to the leaderboard…';
+    $('oLBMsg').textContent=msg;
+  },
+  renderBoard(){
+    const m=this.tab;
+    for(const [id,k] of [['lbFlat','flat'],['lbBumpy','bumpy']]){$(id).classList.toggle('on',m===k);$(id).setAttribute('aria-pressed',m===k);}
+    const n=this.fillList($('lbList'),m,50);
+    const me=this.mine[m],rk=this.rank[m];
+    $('lbMine').textContent=me?`Your best ${Math.floor(+me.m).toLocaleString('en-US')} m`+(rk&&typeof rk!=='object'?` · rank #${rk}`:''):'';
+    let msg=this.msg||'';
+    if(this.state==='connecting')msg='Connecting to the leaderboard…';
+    else if(this.state==='off')msg='The leaderboard is unavailable here. Open the published game while signed in to see it.';
+    else if(!this.loaded[m])msg='Loading…';
+    else if(!n)msg='No scores yet on this pipe. Be the first.';
+    else if(!this.canWrite&&!msg)msg='You can view the board, but your access does not allow posting scores.';
+    $('lbMsg').textContent=msg;
+  },
+  renderAll(){this.renderNick();this.renderOver();if(this.modal==='board')this.renderBoard();},
+  openBoard(){initAudio();sfx.click();this.tab=LBMAPS.includes(MAP)?MAP:this.tab;this.from=G.state==='menu'?'menu':'over';
+    show(this.from==='menu'?'menu':'over',false);show('lbo',true);this.modal='board';this.renderBoard();$('bLBBack').focus();},
+  closeBoard(){sfx.click();show('lbo',false);this.modal=null;show(this.from==='menu'?'menu':'over',true);},
+  openName(){initAudio();sfx.click();this.nameFrom=this.modal==='board'?'board':(G.state==='menu'?'menu':'over');
+    if(this.nameFrom==='board')show('lbo',false);else show(this.nameFrom,false);
+    show('nameo',true);this.modal='name';const i=$('nickIn');i.value=save.nick;$('nickMsg').textContent='';setTimeout(()=>{i.focus();i.select();},30);},
+  closeName(){show('nameo',false);$('nickIn').blur();
+    if(this.nameFrom==='board'){show('lbo',true);this.modal='board';this.renderBoard();}else{this.modal=null;show(this.nameFrom,true);}},
+  saveName(){const v=cleanNick($('nickIn').value);if(!v){$('nickMsg').textContent='Pick a name with at least one character.';return;}
+    sfx.click();this.setNick(v);this.closeName();}
+};
 
 /* ---------------- renderer ---------------- */
 const canvas=$('c');
@@ -497,7 +678,7 @@ function startGame(){
   if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
   Object.assign(G,{gauge:.3,boosting:false,finished:false,finT:0,runTime:0,state:'play',bestShown:false,attract:false,s:12,start:12,V:19,time:0,lastContact:0,airStart:0,slowT:0,jumpCD:0,jumpBuf:0,shake:0,mile:500});
   G.p={x:0,y:-RW};G.v={x:0,y:0};G.cam={x:0,y:-RW*.42+.9};G.look={x:0,y:-RW*.25};G.cn={x:0,y:1};G.ckind=0;G.jumping=false;
-  ball.visible=true;show('menu',false);show('over',false);show('shop',false);show('pause',false);$('hud').classList.add('on');
+  ball.visible=true;show('menu',false);show('over',false);show('shop',false);show('pause',false);show('lbo',false);show('nameo',false);LB.modal=null;$('hud').classList.add('on');
   pipeMat.uniforms.uFinish.value=MAP==='sprint'?(12+FINISH)/L:-1;
   const sp=MAP==='sprint';$('hBestL').textContent=sp?'Best time':'Best';
   $('hBest').textContent=sp?(save.bestTime?fmtTime(save.bestTime):'—'):Math.floor(save.best)+' m';
@@ -519,6 +700,7 @@ function showFinish(){
   $('oTotal').textContent=Math.floor(save.total)+' m';
   $('unlocks').textContent=rec&&old?'New record':'Sprint runs add to your total distance but not to your best run.';
   if(rec&&old)setTimeout(sfx.unlock,200);
+  LB.lastRun=null;LB.renderOver();
   show('over',true);$('hud').classList.remove('on');$('gauge').classList.remove('on');
 }
 function tryJump(){G.jumpBuf=.14;}
@@ -555,6 +737,7 @@ function gameOver(){
   const nxt=SKINS.find(s=>s.req>save.best);
   $('unlocks').textContent=newly.length?('Unlocked: '+newly.map(s=>s.name).join(', ')):(nxt?`Next skin, ${nxt.name}, at ${nxt.req} m`:'Every skin unlocked');
   if(newly.length)setTimeout(sfx.unlock,250);
+  LB.submit(MAP,dist,G.runTime);
   show('over',true);$('hud').classList.remove('on');
 }
 
@@ -731,7 +914,7 @@ function buildShop(){
 function openShop(from){initAudio();sfx.click();G.shopFrom=from;G.attract=(from==='menu');G.prevState=from;G.state='shop';buildShop();show('menu',false);show('over',false);show('shop',true);}
 function closeShop(){sfx.click();show('shop',false);if(G.shopFrom==='over'||G.shopFrom==='finish'){G.state=G.shopFrom;show('over',true);}else{G.state='menu';showMenu();}}
 function showMenu(){G.finishedRun=false;$('gauge').classList.remove('on');pipeMat.uniforms.uFinish.value=-1;G.state='menu';G.prevState='menu';AU.level=0;resetWorld();G.s=8;show('over',false);show('pause',false);show('menu',true);$('hud').classList.remove('on');
-  $('mBest').textContent=save.best>0?`Best run ${Math.floor(save.best)} m`:'';}
+  $('mBest').textContent=save.best>0?`Best run ${Math.floor(save.best)} m`:'';LB.renderNick();}
 function setMap(m,quiet){MAP=m;save.map=m;persist();
   for(const [id,k] of [['mFlat','flat'],['mBumpy','bumpy'],['mSprint','sprint']]){$(id).classList.toggle('on',m===k);$(id).setAttribute('aria-pressed',m===k);}
   $('mapDesc').textContent=m==='bumpy'?'Ramps and humps that launch you':m==='sprint'?`No holes, race to the finish. ${save.bestTime?'Best '+fmtTime(save.bestTime):'No time set yet'}`:'Smooth walls';
@@ -749,6 +932,8 @@ $('mute').onclick=()=>{initAudio();setMute(!AU.muted);$('mute').blur();};
 
 addEventListener('keydown',e=>{
   const c=e.code;
+  if(e.target&&e.target.tagName==='INPUT')return;
+  if(LB.modal){if(c==='Escape'){e.preventDefault();LB.modal==='name'?LB.closeName():LB.closeBoard();}return;}
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(c)&&e.target.tagName!=='BUTTON')e.preventDefault();
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(c)&&e.target.tagName==='BUTTON'&&G.state==='play')e.preventDefault();
   keys[c]=true;if(e.repeat)return;
@@ -775,9 +960,16 @@ if('ontouchstart' in window||navigator.maxTouchPoints>0){
   ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>$('tJ').addEventListener(ev,()=>touchJ=false));
 }
 
+$('bLB1').onclick=()=>LB.openBoard();$('bLB2').onclick=()=>LB.openBoard();$('bLBBack').onclick=()=>LB.closeBoard();
+$('lbFlat').onclick=()=>{sfx.click();LB.tab='flat';LB.renderBoard();};$('lbBumpy').onclick=()=>{sfx.click();LB.tab='bumpy';LB.renderBoard();};
+$('bRename1').onclick=()=>LB.openName();$('bRename2').onclick=()=>LB.openName();
+$('bNickSave').onclick=()=>LB.saveName();$('bNickCancel').onclick=()=>{sfx.click();LB.closeName();};
+$('nickIn').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();LB.saveName();}else if(e.key==='Escape'){e.preventDefault();LB.closeName();}});
 setMap(MAP,true);
 showMenu();
 requestAnimationFrame(loop);
+LB.renderAll();
+LB.q=LB.init().catch(()=>{});
 })();
 </script>
 </body>
