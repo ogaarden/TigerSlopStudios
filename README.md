@@ -2,9 +2,9 @@
 
 Spillsiden til Tigerslop Studios, hostet med GitHub Pages.
 
-- `index.html` – forsiden med spillkort
-- `games/<spill>/index.html` – hvert spill er én selvstendig fil
-- `assets/` – logo, favicon og `thumbs/` (skjermbilder til spillkortene)
-- `legacy/` – gamle eksperimenter
 
-Nytt spill: legg det i `games/<navn>/index.html` og lag et nytt `<a class="game">`-kort i `index.html`.
+# Kan anbefale : gravitube, fort defender - orc siege
+
+Lenke:
+
+https://ogaarden.github.io/TigerSlopStudios/#spill
