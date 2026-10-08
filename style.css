@@ -77,6 +77,38 @@ h2.sec{font-family:var(--f-display);font-weight:800;font-size:34px;letter-spacin
 .sp .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(36px,6.5vw,50px);line-height:.95;color:#4af2ff;text-shadow:0 4px 0 #ff3da8}
 .tk .art{background:linear-gradient(180deg,#8ac4ff,#f0d9b0 70%,#ff6a2a)}
 .tk .t{font-family:"Lilita One",sans-serif;font-size:clamp(40px,7vw,52px);line-height:.95;color:#fff;text-shadow:0 4px 0 #ff5a1f}
+.br .art{background:linear-gradient(180deg,#9ccf6a,#4f8a3a)}
+.br .t{font-family:"Lilita One",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#fff;text-shadow:0 4px 0 #3a5a1a}
+.cr .art{background:linear-gradient(135deg,#1aa6c8,#3a2a9a)}
+.cr .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#bff9ff;text-shadow:0 4px 0 #1a1a5a}
+.cb .art{background:linear-gradient(180deg,#8fd06a,#3f7a3a)}
+.cb .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#fff;text-shadow:0 4px 0 #4a2a7a}
+.kr .art{background:linear-gradient(180deg,#fdf6ec,#f2dcc8)}
+.kr .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#c0392b;text-shadow:0 4px 0 #f2dcc8}
+.ll .art{background:linear-gradient(180deg,#f3eefc,#d9cdf2)}
+.ll .t{font-family:"Lilita One",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#c8961e;text-shadow:0 4px 0 #3a2a5a}
+.mw .art{background:linear-gradient(180deg,#3a2a1a,#8a6a3a)}
+.mw .t{font-family:"Jacquard 12",serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#ffd36b;text-shadow:0 4px 0 #2a1a0a}
+.pk .art{background:linear-gradient(180deg,#f2e6c8,#c84a3a)}
+.pk .t{font-family:"Lilita One",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#ffc93c;text-shadow:0 4px 0 #7a2a1a}
+.pq .art{background:linear-gradient(180deg,#a8e07a,#4a9a4a)}
+.pq .t{font-family:"Lilita One",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#fff;text-shadow:0 4px 0 #2a5a2a}
+.qt .art{background:radial-gradient(ellipse at 50% 100%,#5a2a6a,#0a0614 75%)}
+.qt .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#ffb26b;text-shadow:0 4px 0 #3a1a4a}
+.rh .art{background:radial-gradient(ellipse at 50% 40%,#3a0a0a,#050202 75%)}
+.rh .t{font-family:Georgia,serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#e8d8c0;text-shadow:0 4px 0 #5a0a0a}
+.rr .art{background:linear-gradient(180deg,#5ac8f0,#f0a03a)}
+.rr .t{font-family:"Lilita One",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#ffd23c;text-shadow:0 4px 0 #a83a0a}
+.sy .art{background:radial-gradient(ellipse at 50% 50%,#2a2a6a,#0a0a24 75%)}
+.sy .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#ffd36b;text-shadow:0 4px 0 #1a1a4a}
+.ss .art{background:linear-gradient(180deg,#e8c88a,#a86a2a)}
+.ss .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#fff;text-shadow:0 4px 0 #5a3a1a}
+.sf .art{background:linear-gradient(180deg,#9ad8f0,#6ac84a)}
+.sf .t{font-family:"Lilita One",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#fff;text-shadow:0 4px 0 #3a8a2a}
+.th .art{background:linear-gradient(180deg,#3ab0b8,#062a3a)}
+.th .t{font-family:Georgia,serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#e8fbff;text-shadow:0 4px 0 #062a3a}
+.tc .art{background:linear-gradient(180deg,#bfe0ff,#5a6a7a)}
+.tc .t{font-family:"Lilita One",sans-serif;font-weight:800;font-size:clamp(34px,6vw,48px);line-height:.95;color:#fff;text-shadow:0 4px 0 #2a7ad0}
 footer{border-top:3px solid var(--ink);padding:22px 0 40px;font-family:var(--f-mono);font-size:13px;color:#6b5d50;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 @media (max-width:760px){.hero{grid-template-columns:1fr;text-align:center}.hero p{margin-inline:auto}.hero img{max-width:340px;margin:0 auto;order:-1}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
